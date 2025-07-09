@@ -1,0 +1,8 @@
+{
+  "rules": {
+    "textlint-rule-preset-ai-writing": true,
+    "preset-ja-technical-writing": {
+      "ja-no-mixed-period": false
+    }
+  }
+}

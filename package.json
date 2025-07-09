@@ -1,0 +1,14 @@
+{
+  "name": "stapy116",
+  "version": "0.1.0",
+  "description": "sphinx-revealjs presentation project",
+  "scripts": {
+    "textlint": "textlint 'docs/**/*.md'",
+    "textlint:fix": "textlint --fix 'docs/**/*.md'"
+  },
+  "devDependencies": {
+    "textlint": "^14.8.4",
+    "textlint-rule-preset-ai-writing": "^1.1.0",
+    "textlint-rule-preset-ja-technical-writing": "^10.0.1"
+  }
+}
