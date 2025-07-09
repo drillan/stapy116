@@ -90,3 +90,16 @@ When creating presentation content, follow these guidelines for optimal readabil
 - Ensure each slide has a single, clear message
 
 These guidelines ensure that slides are readable during presentation and maintain audience engagement.
+
+## Sample Project: PyQC
+
+This repository includes specifications for PyQC (Python Quality Checker), a sample project demonstrating the practical approach of Claude Code. Detailed specifications and implementation notes are available in the `.claude/` directory:
+
+- `.claude/project-plan.md`: Overall project planning and phases
+- `.claude/pyqc-spec.md`: Detailed functional specifications
+- `.claude/implementation-notes.md`: Implementation guidelines and best practices
+
+PyQC demonstrates the three key points from the presentation:
+1. **Planning**: Structured project phases and clear specifications
+2. **Recording**: Comprehensive documentation in `.claude/` directory
+3. **Robustness**: Quality checks with ruff, mypy/ty, and automated hooks
