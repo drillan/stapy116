@@ -11,16 +11,16 @@ This is a sphinx-revealjs presentation project for stapy116. The project creates
 ### Presentation Building
 ```bash
 # Build presentation slides
-uv run sphinx-build -M revealjs docs docs/_build
+uv run sphinx-build -M revealjs slides slides/_build
 
 # Clean build artifacts
-uv run sphinx-build -M clean docs docs/_build
+uv run sphinx-build -M clean slides slides/_build
 
 # Build HTML documentation (alternative output)
-uv run sphinx-build -M html docs docs/_build
+uv run sphinx-build -M html slides slides/_build
 
 # Watch for changes and rebuild (if sphinx-autobuild is installed)
-uv run sphinx-autobuild docs docs/_build/revealjs --builder revealjs
+uv run sphinx-autobuild slides slides/_build/revealjs --builder revealjs
 ```
 
 ### Package Management
@@ -46,7 +46,7 @@ npm run textlint:fix
 
 ## Architecture
 
-- **docs/**: Sphinx source files for presentation
+- **slides/**: Sphinx source files for presentation
   - `conf.py`: Sphinx configuration with MyST parser and sphinx-revealjs extensions
   - `index.md`: Main presentation slides using MyST syntax
   - `Makefile`: Standard Sphinx build commands
