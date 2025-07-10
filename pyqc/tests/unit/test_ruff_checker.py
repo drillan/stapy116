@@ -36,20 +36,18 @@ class TestRuffChecker:
         config = RuffConfig(extend_select=[], ignore=[])
         checker = RuffChecker(config)
         command = checker._build_command("check", Path("test.py"))
-        
+
         expected = ["ruff", "check", "--output-format=json", "test.py"]
         assert command == expected
 
     def test_build_command_with_config(self) -> None:
         """Test command building with configuration."""
         config = RuffConfig(
-            line_length=100,
-            extend_select=["E", "F", "I"],
-            ignore=["E501", "F401"]
+            line_length=100, extend_select=["E", "F", "I"], ignore=["E501", "F401"]
         )
         checker = RuffChecker(config)
         command = checker._build_command("check", Path("test.py"))
-        
+
         assert "ruff" in command
         assert "check" in command
         assert "--output-format=json" in command
@@ -67,15 +65,12 @@ class TestRuffCheckerLint:
         """Test lint check with no issues."""
         # Mock successful ruff execution with no issues
         mock_run.return_value = subprocess.CompletedProcess(
-            args=["ruff", "check"],
-            returncode=0,
-            stdout="[]",
-            stderr=""
+            args=["ruff", "check"], returncode=0, stdout="[]", stderr=""
         )
-        
+
         checker = RuffChecker()
         issues = checker.check_lint(Path("test.py"))
-        
+
         assert issues == []
         mock_run.assert_called_once()
 
@@ -91,31 +86,31 @@ class TestRuffCheckerLint:
                 "location": {"row": 10, "column": 1},
                 "end_location": {"row": 10, "column": 93},
                 "fix": None,
-                "severity": "warning"
+                "severity": "warning",
             },
             {
-                "filename": "test.py", 
+                "filename": "test.py",
                 "code": "F401",
                 "message": "'os' imported but unused",
                 "location": {"row": 1, "column": 1},
                 "end_location": {"row": 1, "column": 9},
                 "fix": {"message": "Remove unused import", "edits": []},
-                "severity": "error"
-            }
+                "severity": "error",
+            },
         ]
-        
+
         mock_run.return_value = subprocess.CompletedProcess(
             args=["ruff", "check"],
             returncode=1,  # Issues found
             stdout=json.dumps(ruff_output),
-            stderr=""
+            stderr="",
         )
-        
+
         checker = RuffChecker()
         issues = checker.check_lint(Path("test.py"))
-        
+
         assert len(issues) == 2
-        
+
         # Check first issue (E501)
         issue1 = issues[0]
         assert issue1["code"] == "E501"
@@ -123,8 +118,8 @@ class TestRuffCheckerLint:
         assert issue1["filename"] == "test.py"
         assert issue1["location"]["row"] == 10
         assert issue1["severity"] == "warning"
-        
-        # Check second issue (F401)  
+
+        # Check second issue (F401)
         issue2 = issues[1]
         assert issue2["code"] == "F401"
         assert issue2["message"] == "'os' imported but unused"
@@ -139,9 +134,9 @@ class TestRuffCheckerLint:
             args=["ruff", "check"],
             returncode=2,  # Execution error
             stdout="",
-            stderr="ruff: error: No such file or directory"
+            stderr="ruff: error: No such file or directory",
         )
-        
+
         checker = RuffChecker()
         with pytest.raises(RuntimeError, match="Ruff execution failed"):
             checker.check_lint(Path("nonexistent.py"))
@@ -150,7 +145,7 @@ class TestRuffCheckerLint:
     def test_check_lint_command_not_found(self, mock_run: Mock) -> None:
         """Test lint check when ruff command is not found."""
         mock_run.side_effect = FileNotFoundError("ruff: command not found")
-        
+
         checker = RuffChecker()
         with pytest.raises(FileNotFoundError, match="ruff: command not found"):
             checker.check_lint(Path("test.py"))
@@ -162,9 +157,9 @@ class TestRuffCheckerLint:
             args=["ruff", "check"],
             returncode=1,
             stdout="invalid json output",
-            stderr=""
+            stderr="",
         )
-        
+
         checker = RuffChecker()
         with pytest.raises(json.JSONDecodeError):
             checker.check_lint(Path("test.py"))
@@ -177,30 +172,27 @@ class TestRuffCheckerFormat:
     def test_check_format_no_issues(self, mock_run: Mock) -> None:
         """Test format check with no formatting issues."""
         mock_run.return_value = subprocess.CompletedProcess(
-            args=["ruff", "format", "--check"],
-            returncode=0,
-            stdout="",
-            stderr=""
+            args=["ruff", "format", "--check"], returncode=0, stdout="", stderr=""
         )
-        
+
         checker = RuffChecker()
         issues = checker.check_format(Path("test.py"))
-        
+
         assert issues == []
 
-    @patch("subprocess.run") 
+    @patch("subprocess.run")
     def test_check_format_with_issues(self, mock_run: Mock) -> None:
         """Test format check with formatting issues."""
         mock_run.return_value = subprocess.CompletedProcess(
             args=["ruff", "format", "--check"],
             returncode=1,  # Would reformat
             stdout="Would reformat: test.py",
-            stderr=""
+            stderr="",
         )
-        
+
         checker = RuffChecker()
         issues = checker.check_format(Path("test.py"))
-        
+
         assert len(issues) == 1
         issue = issues[0]
         assert issue["type"] == "format"
@@ -214,12 +206,12 @@ class TestRuffCheckerFormat:
             args=["ruff", "format", "--check"],
             returncode=1,
             stdout="Would reformat: test.py",
-            stderr=""
+            stderr="",
         )
-        
+
         checker = RuffChecker()
         result = checker.fix_format(Path("test.py"), dry_run=True)
-        
+
         assert result is True
         # Should call format with --check flag in dry-run
         mock_run.assert_called_once()
@@ -230,15 +222,12 @@ class TestRuffCheckerFormat:
     def test_fix_format_actual(self, mock_run: Mock) -> None:
         """Test actual format fix."""
         mock_run.return_value = subprocess.CompletedProcess(
-            args=["ruff", "format"],
-            returncode=0,
-            stdout="",
-            stderr=""
+            args=["ruff", "format"], returncode=0, stdout="", stderr=""
         )
-        
+
         checker = RuffChecker()
         result = checker.fix_format(Path("test.py"), dry_run=False)
-        
+
         assert result is True
         # Should call format without --check flag for actual fix
         mock_run.assert_called_once()
@@ -254,12 +243,12 @@ class TestRuffCheckerConfiguration:
         config = RuffConfig(
             line_length=120,
             extend_select=["E", "F", "I", "N"],
-            ignore=["E501", "F401", "I001"]
+            ignore=["E501", "F401", "I001"],
         )
         checker = RuffChecker(config)
-        
+
         command = checker._build_command("check", Path("test.py"))
-        
+
         # Check that all configuration options are included
         command_str = " ".join(command)
         assert "--line-length=120" in command_str
@@ -268,15 +257,12 @@ class TestRuffCheckerConfiguration:
 
     def test_empty_config_lists(self) -> None:
         """Test handling of empty configuration lists."""
-        config = RuffConfig(
-            extend_select=[],
-            ignore=[]
-        )
+        config = RuffConfig(extend_select=[], ignore=[])
         checker = RuffChecker(config)
-        
+
         command = checker._build_command("check", Path("test.py"))
         command_str = " ".join(command)
-        
+
         # Empty lists should not add options
         assert "--extend-select=" not in command_str
         assert "--ignore=" not in command_str
@@ -300,18 +286,18 @@ def hello(  name  ):
 if __name__ == "__main__":
     print(hello("World"))
 """)
-        
+
         checker = RuffChecker()
-        
+
         try:
             issues = checker.check_lint(test_file)
             # Should find some issues (spacing, unused import, etc.)
             # The exact issues depend on ruff configuration, but there should be some
             assert isinstance(issues, list)
-            
+
             # Test format check
             format_issues = checker.check_format(test_file)
             assert isinstance(format_issues, list)
-            
+
         except FileNotFoundError:
             pytest.skip("ruff not installed in test environment")

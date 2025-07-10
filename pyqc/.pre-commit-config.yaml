@@ -1,0 +1,10 @@
+repos:
+  - repo: local
+    hooks:
+      - id: pyqc-check
+        name: PyQC Check
+        entry: uv --directory pyqc run pyqc check
+        language: system
+        types: [python]
+        pass_filenames: false
+        always_run: true

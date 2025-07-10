@@ -99,3 +99,8 @@ exclude_lines = [
     "raise AssertionError",
     "raise NotImplementedError",
 ]
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.2.0",
+]
