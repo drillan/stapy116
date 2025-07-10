@@ -41,6 +41,11 @@
 - クラスメソッドによるファクトリパターン
 - `from __future__ import annotations` 必須
 
+**エイリアス対応パターン:**
+- `Field(alias="kebab-case")` でTOML形式対応
+- `model_config = {"populate_by_name": True}` で両形式対応
+- `model_validate(data, by_alias=True)` で読み込み時エイリアス適用
+
 ## アーキテクチャパターン
 
 ### プロジェクト構造
@@ -83,6 +88,7 @@ tests/
 - **pydantic**: 設定管理
 - **rich**: 出力フォーマット
 - **pyyaml**: YAML設定サポート
+- **tomli-w**: TOML書き込み（Python 3.11+のtomlibは読み込みのみ）
 
 ### 開発依存関係
 - **pytest**: テストフレームワーク
@@ -123,6 +129,10 @@ extend-select = ["I", "N", "UP"]
 - ツール固有セクション活用
 - 既存ツール設定との共存
 - 階層的設定構造
+
+**TOMLネストセクション処理:**
+- `[tool.pyqc.ruff]` は `{"tool": {"pyqc": {"ruff": {...}}}}` に自動変換
+- 複雑な解析不要、標準tomlibで自然に処理される
 
 ### YAML設定サポート
 ```yaml

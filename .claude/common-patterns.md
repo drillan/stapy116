@@ -86,8 +86,7 @@ class ToolConfig(BaseModel):
     option2: int = Field(default=0, gt=0, description="正の整数")
     option3: list[str] = Field(default_factory=list)
     
-    class Config:
-        extra = "forbid"  # 未知フィールドを禁止
+    model_config = {"extra": "forbid"}  # 未知フィールドを禁止
 
 class MainConfig(BaseModel):
     """メイン設定."""
@@ -106,6 +105,27 @@ class MainConfig(BaseModel):
             with open(path) as f:
                 data = yaml.safe_load(f)
         return cls.model_validate(data)
+```
+
+### Pydantic エイリアス対応パターン
+```python
+from pydantic import BaseModel, Field
+
+class ConfigWithAliases(BaseModel):
+    """エイリアス対応設定."""
+    
+    # kebab-case ↔ snake_case 変換
+    line_length: int = Field(default=88, alias="line-length")
+    type_checker: str = Field(default="mypy", alias="type-checker")
+    
+    # 両方の名前を受け付ける
+    model_config = {"populate_by_name": True}
+    
+    @classmethod
+    def load_from_file(cls, path: Path) -> "ConfigWithAliases":
+        """ファイルから設定を読み込み（エイリアス対応）."""
+        # ... データ読み込み
+        return cls.model_validate(data, by_alias=True)
 ```
 
 ### 設定ファイル探索パターン
@@ -193,6 +213,19 @@ def test_config_from_file(tmp_path):
     config = Config.load_from_file(config_file)
     assert config.option1 == "test"
     assert config.option2 == 42
+
+def test_config_with_aliases(tmp_path):
+    """エイリアス対応設定テスト."""
+    config_file = tmp_path / "pyproject.toml"
+    config_file.write_text("""
+[tool.mytool]
+line-length = 100
+type-checker = "mypy"
+""")
+    
+    config = Config.load_from_file(config_file)
+    assert config.line_length == 100
+    assert config.type_checker == "mypy"
 ```
 
 ### フィクスチャパターン
