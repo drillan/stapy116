@@ -56,6 +56,7 @@ def check(
     types: bool = typer.Option(False, "--types", help="Run type checks only"),
     format_check: bool = typer.Option(False, "--format", help="Run format checks only"),
     output: str = typer.Option("text", "--output", help="Output format: text, json, github"),
+    show_performance: bool = typer.Option(False, "--show-performance", help="Show performance metrics"),
 ) -> None:
     """Run quality checks on Python code."""
     target_path = Path(path).resolve()
@@ -79,35 +80,33 @@ def check(
     
     # Initialize runner
     runner = PyQCRunner(config)
-    results = []
     
-    # Process each file
-    for file_path in python_files:
-        try:
-            result = runner.check_file(file_path)
-            results.append(result)
-            
-            if output == "text" and len(python_files) > 1:
-                # Show per-file progress for multiple files
+    # Process files using parallel execution
+    try:
+        results = runner.check_files_parallel(python_files)
+        
+        # Show per-file progress for multiple files in text mode
+        if output == "text" and len(python_files) > 1:
+            for result in results:
                 status = "✅" if result.success and not result.issues else "⚠️"
                 issue_count = len(result.issues)
-                console.print(f"  {status} {file_path.relative_to(target_path)}: {issue_count} issues")
-        
-        except Exception as e:
-            console.print(f"❌ Error checking {file_path}: {e}", style="red")
-            sys.exit(1)
+                console.print(f"  {status} {result.path.relative_to(target_path)}: {issue_count} issues")
+    
+    except Exception as e:
+        console.print(f"❌ Error during parallel execution: {e}", style="red")
+        sys.exit(1)
     
     # Generate and display report
     try:
         if output == "json":
-            report = ReportGenerator.generate_json_report(results)
+            report = ReportGenerator.generate_json_report(results, include_performance=show_performance)
             console.print(json.dumps(report, indent=2))
         elif output == "github":
             report = ReportGenerator.generate_github_actions_report(results)
             if report:
                 console.print(report)
         else:  # text format
-            report = ReportGenerator.generate_text_report(results)
+            report = ReportGenerator.generate_text_report(results, show_performance=show_performance)
             console.print(report)
     
     except Exception as e:
@@ -158,24 +157,30 @@ def fix(
     
     # Initialize runner
     runner = PyQCRunner(config)
-    fixed_files = 0
-    failed_files = 0
     
-    # Process each file
-    for file_path in python_files:
-        try:
-            result = runner.fix_file(file_path, dry_run=dry_run)
-            
+    # Process files using parallel execution
+    try:
+        results = runner.fix_files_parallel(python_files, dry_run=dry_run)
+        
+        # Process results
+        fixed_files = 0
+        failed_files = 0
+        
+        for result in results:
             if result.success and "ruff-format-fix" in result.checks_run:
                 fixed_files += 1
                 status = "Would fix" if dry_run else "Fixed"
-                console.print(f"  ✅ {status}: {file_path.relative_to(target_path)}")
+                console.print(f"  ✅ {status}: {result.path.relative_to(target_path)}")
+            elif result.success:
+                console.print(f"  ➖ No fixes needed: {result.path.relative_to(target_path)}")
             else:
-                console.print(f"  ➖ No fixes needed: {file_path.relative_to(target_path)}")
-        
-        except Exception as e:
-            failed_files += 1
-            console.print(f"  ❌ Error fixing {file_path.relative_to(target_path)}: {e}", style="red")
+                failed_files += 1
+                console.print(f"  ❌ Error fixing {result.path.relative_to(target_path)}: {result.error_message}", style="red")
+    
+    except Exception as e:
+        console.print(f"❌ Error during parallel execution: {e}", style="red")
+        failed_files = len(python_files)
+        fixed_files = 0
     
     # Summary
     if dry_run:

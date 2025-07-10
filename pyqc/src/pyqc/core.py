@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import json
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any
 
@@ -129,6 +132,7 @@ class PyQCRunner:
     
     def check_file(self, path: Path) -> CheckResult:
         """Run all quality checks on a single file."""
+        start_time = time.time()
         result = CheckResult(path, self.config)
         
         try:
@@ -141,6 +145,9 @@ class PyQCRunner:
                         issue["fixable"] = True
                 result.add_issues(lint_issues, "ruff-lint")
                 result.checks_run.append("ruff-lint")
+            except FileNotFoundError:
+                # Ruff not installed - skip this check but continue
+                result.checks_run.append("ruff-lint-skipped")
             except Exception as e:
                 result.success = False
                 result.error_message = f"Ruff lint failed: {e}"
@@ -153,6 +160,9 @@ class PyQCRunner:
                     issue["fixable"] = True
                 result.add_issues(format_issues, "ruff-format")
                 result.checks_run.append("ruff-format")
+            except FileNotFoundError:
+                # Ruff not installed - skip this check but continue
+                result.checks_run.append("ruff-format-skipped")
             except Exception as e:
                 result.success = False
                 result.error_message = f"Ruff format failed: {e}"
@@ -162,6 +172,9 @@ class PyQCRunner:
                 type_issues = self.type_checker.check_types(path)
                 result.add_issues(type_issues, "type-check")
                 result.checks_run.append("type-check")
+            except FileNotFoundError:
+                # Type checker not installed - skip this check but continue
+                result.checks_run.append("type-check-skipped")
             except Exception as e:
                 result.success = False
                 result.error_message = f"Type check failed: {e}"
@@ -170,10 +183,13 @@ class PyQCRunner:
             result.success = False
             result.error_message = f"Unexpected error: {e}"
         
+        # Set execution time
+        result.execution_time = time.time() - start_time
         return result
     
     def fix_file(self, path: Path, dry_run: bool = False) -> CheckResult:
         """Run automatic fixes on a single file."""
+        start_time = time.time()
         result = CheckResult(path, self.config)
         
         try:
@@ -185,6 +201,9 @@ class PyQCRunner:
                 else:
                     result.success = False
                     result.error_message = "Ruff format fix failed"
+            except FileNotFoundError:
+                # Ruff not installed - skip this fix but continue
+                result.checks_run.append("ruff-format-fix-skipped")
             except Exception as e:
                 result.success = False
                 result.error_message = f"Ruff format fix failed: {e}"
@@ -193,14 +212,111 @@ class PyQCRunner:
             result.success = False
             result.error_message = f"Unexpected error during fix: {e}"
         
+        # Set execution time
+        result.execution_time = time.time() - start_time
         return result
+    
+    def check_files_parallel(self, paths: list[Path], max_workers: int | None = None) -> list[CheckResult]:
+        """Run quality checks on multiple files in parallel."""
+        if not paths:
+            return []
+        
+        # Use configured parallel setting
+        if not self.config.parallel:
+            # Sequential execution
+            return [self.check_file(path) for path in paths]
+        
+        # Parallel execution
+        if max_workers is None:
+            # Use CPU count or reasonable default
+            import os
+            max_workers = min(len(paths), os.cpu_count() or 4)
+        
+        results = []
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # Submit all tasks
+            future_to_path = {executor.submit(self.check_file, path): path for path in paths}
+            
+            # Collect results as they complete
+            for future in as_completed(future_to_path):
+                path = future_to_path[future]
+                try:
+                    result = future.result()
+                    results.append(result)
+                except Exception as e:
+                    # Create failed result for this file
+                    failed_result = CheckResult(path, self.config)
+                    failed_result.success = False
+                    failed_result.error_message = f"Parallel execution failed: {e}"
+                    results.append(failed_result)
+        
+        # Sort results by path for consistent output
+        results.sort(key=lambda r: str(r.path))
+        return results
+    
+    def fix_files_parallel(self, paths: list[Path], dry_run: bool = False, max_workers: int | None = None) -> list[CheckResult]:
+        """Run automatic fixes on multiple files in parallel."""
+        if not paths:
+            return []
+        
+        # Use configured parallel setting
+        if not self.config.parallel:
+            # Sequential execution
+            return [self.fix_file(path, dry_run=dry_run) for path in paths]
+        
+        # Parallel execution
+        if max_workers is None:
+            # Use CPU count or reasonable default
+            import os
+            max_workers = min(len(paths), os.cpu_count() or 4)
+        
+        results = []
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # Submit all tasks
+            future_to_path = {executor.submit(self.fix_file, path, dry_run): path for path in paths}
+            
+            # Collect results as they complete
+            for future in as_completed(future_to_path):
+                path = future_to_path[future]
+                try:
+                    result = future.result()
+                    results.append(result)
+                except Exception as e:
+                    # Create failed result for this file
+                    failed_result = CheckResult(path, self.config)
+                    failed_result.success = False
+                    failed_result.error_message = f"Parallel execution failed: {e}"
+                    results.append(failed_result)
+        
+        # Sort results by path for consistent output
+        results.sort(key=lambda r: str(r.path))
+        return results
+    
+    def get_performance_metrics(self, results: list[CheckResult]) -> dict[str, Any]:
+        """Get performance metrics from check results."""
+        if not results:
+            return {}
+        
+        total_time = sum(result.execution_time for result in results)
+        successful_results = [r for r in results if r.success]
+        failed_results = [r for r in results if not r.success]
+        
+        return {
+            "total_files": len(results),
+            "successful_files": len(successful_results),
+            "failed_files": len(failed_results),
+            "total_execution_time": total_time,
+            "average_time_per_file": total_time / len(results) if results else 0,
+            "parallel_enabled": self.config.parallel,
+            "files_per_second": len(results) / total_time if total_time > 0 else 0
+        }
 
 
 class ReportGenerator:
     """Generate reports from check results."""
     
     @staticmethod
-    def generate_text_report(results: list[CheckResult]) -> str:
+    def generate_text_report(results: list[CheckResult], show_performance: bool = False) -> str:
         """Generate human-readable text report."""
         if not results:
             return "No files checked."
@@ -214,6 +330,17 @@ class ReportGenerator:
         lines.append(f"Files checked: {total_files}")
         lines.append(f"Successful: {successful_files}")
         lines.append(f"Total issues: {total_issues}")
+        
+        # Add performance information if requested
+        if show_performance:
+            total_time = sum(result.execution_time for result in results)
+            avg_time = total_time / total_files if total_files > 0 else 0
+            files_per_second = total_files / total_time if total_time > 0 else 0
+            
+            lines.append(f"Total time: {total_time:.2f}s")
+            lines.append(f"Average time per file: {avg_time:.3f}s")
+            lines.append(f"Files per second: {files_per_second:.1f}")
+        
         lines.append("")
         
         # Group issues by severity
@@ -250,7 +377,7 @@ class ReportGenerator:
         return "\n".join(lines)
     
     @staticmethod
-    def generate_json_report(results: list[CheckResult]) -> dict[str, Any]:
+    def generate_json_report(results: list[CheckResult], include_performance: bool = False) -> dict[str, Any]:
         """Generate JSON report."""
         total_files = len(results)
         total_issues = sum(len(result.issues) for result in results)
@@ -263,7 +390,7 @@ class ReportGenerator:
             for severity, count in counts.items():
                 severity_counts[severity] += count
         
-        return {
+        report = {
             "summary": {
                 "files_checked": total_files,
                 "successful_files": successful_files,
@@ -272,6 +399,21 @@ class ReportGenerator:
             },
             "results": [result.to_dict() for result in results]
         }
+        
+        # Add performance information if requested
+        if include_performance:
+            total_time = sum(result.execution_time for result in results)
+            avg_time = total_time / total_files if total_files > 0 else 0
+            files_per_second = total_files / total_time if total_time > 0 else 0
+            
+            report["performance"] = {
+                "total_execution_time": total_time,
+                "average_time_per_file": avg_time,
+                "files_per_second": files_per_second,
+                "parallel_execution": len(results) > 1  # Assume parallel if multiple files
+            }
+        
+        return report
     
     @staticmethod
     def generate_github_actions_report(results: list[CheckResult]) -> str:
