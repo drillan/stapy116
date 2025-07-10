@@ -1,0 +1,111 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pyqc"
+version = "0.1.0"
+description = "Python Quality Checker - Integrated code quality tools for Python projects"
+readme = "README.md"
+license = "MIT"
+authors = [
+    { name = "Claude Code", email = "noreply@anthropic.com" },
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Quality Assurance",
+    "Topic :: Software Development :: Testing",
+]
+requires-python = ">=3.12"
+dependencies = [
+    "typer>=0.12.0",
+    "ruff>=0.8.0",
+    "mypy>=1.10.0",
+    "rich>=13.0.0",
+    "pydantic>=2.0.0",
+    "pyyaml>=6.0.0",
+    "tomli-w>=1.2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=5.0.0",
+    "pre-commit>=3.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/example/pyqc"
+Repository = "https://github.com/example/pyqc"
+Issues = "https://github.com/example/pyqc/issues"
+
+[project.scripts]
+pyqc = "pyqc.cli:app"
+
+[tool.hatch.version]
+path = "src/pyqc/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pyqc"]
+
+[tool.pyqc]
+line-length = 88
+type-checker = "mypy"
+
+[tool.pyqc.ruff]
+extend-select = ["I", "N", "UP"]
+ignore = ["E501"]
+
+[tool.pyqc.mypy]
+strict = true
+ignore_missing_imports = true
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP"]
+ignore = ["E501"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "--cov=src/pyqc --cov-report=term-missing"
+markers = [
+    "integration: marks tests as integration tests (deselect with '-m \"not integration\"')",
+    "unit: marks tests as unit tests",
+    "e2e: marks tests as end-to-end tests"
+]
+
+[tool.coverage.run]
+source = ["src/pyqc"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+]
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.2.0",
+]

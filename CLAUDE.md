@@ -2,13 +2,14 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Project Overview
+## Project Structure
 
-This is a sphinx-revealjs presentation project for stapy116. The project creates HTML-based reveal.js presentations using Sphinx with MyST parser for Markdown support.
+This repository contains two main components:
 
-## Development Commands
+1. **Presentation Project**: A sphinx-revealjs presentation for stapy116
+2. **Sample Project**: PyQC (Python Quality Checker) specifications demonstrating Claude Code methodology
 
-### Presentation Building
+## Presentation Building
 ```bash
 # Build presentation slides
 uv run sphinx-build -M revealjs slides slides/_build
@@ -23,26 +24,42 @@ uv run sphinx-build -M html slides slides/_build
 uv run sphinx-autobuild slides slides/_build/revealjs --builder revealjs
 ```
 
-### Package Management
-```bash
-# Install dependencies
-uv sync
+## Knowledge Organization
 
-# Add new dependency
-uv add package_name
+Project-specific knowledge is organized in the `.claude/` directory:
 
-# Install Node.js dependencies for textlint
-npm install
-```
+### Presentation Project Knowledge
+- **@.claude/slides-project.md**: Complete guide for the sphinx-revealjs presentation
+  - Development commands and workflow
+  - Architecture and file structure
+  - Slide writing guidelines and formatting rules
 
-### Text Linting
-```bash
-# Run textlint on documentation
-npm run textlint
+### Sample Project Knowledge
+- **@.claude/sample-project.md**: Overview of PyQC sample project
+  - Project purpose and learning objectives
+  - Three key points demonstration
+  - Technology stack and usage guidelines
 
-# Auto-fix textlint issues
-npm run textlint:fix
-```
+### PyQC Specifications
+- **@.claude/project-plan.md**: Project planning and implementation phases
+- **@.claude/pyqc-spec.md**: Detailed functional specifications and CLI design
+- **@.claude/implementation-notes.md**: Implementation guidelines and best practices
+
+## Usage Guidelines
+
+When working with this repository:
+
+1. **For presentation work**: Refer to @.claude/slides-project.md
+2. **For sample project**: Start with @.claude/sample-project.md for overview
+3. **For PyQC implementation**: Use the three PyQC specification files
+
+## Context Selection
+
+Claude Code will automatically reference the appropriate knowledge files based on the task context:
+
+- **Slide creation/editing**: Uses slides-project.md
+- **PyQC development**: Uses pyqc-spec.md and implementation-notes.md
+- **Project planning**: Uses project-plan.md and sample-project.md
 
 ## Architecture
 
@@ -53,40 +70,15 @@ npm run textlint:fix
   - `_build/revealjs/`: Generated presentation output
   - `_static/`, `_templates/`: Static assets and custom templates
 
-- **pyproject.toml**: Project configuration with dependencies:
-  - `myst-parser>=4.0.1`: Markdown parsing for Sphinx
-  - `sphinx-revealjs>=3.2.0`: Reveal.js presentation generation
+This organization ensures efficient context usage and maintains clear separation of concerns between the presentation and sample projects.
 
-## Presentation Format
+## Implementation Plans
 
-The project uses MyST (Markedly Structured Text) format for creating slides. Slides are automatically created based on heading levels (H3 maximum):
+Implementation plans created by Claude Code are managed in @plans/index.md. This system provides:
 
-- `# Title` (H1): Title slide
-- `## Section` (H2): New horizontal slide
-- `### Subsection` (H3): New vertical slide (sub-slide)
+- **Structured planning**: Each plan has a unique ID and clear objectives
+- **Progress tracking**: Status and completion tracking for all plans
+- **Historical record**: Completed plans are archived for future reference
+- **Memory efficiency**: Plans are stored separately from core knowledge to avoid context bloat
 
-Note: Heading levels H4 and below are not used for slide separation and will appear as regular content within slides.
-
-Slides are built as reveal.js presentations and can be viewed in a web browser with navigation controls.
-
-## Slide Writing Guidelines
-
-When creating presentation content, follow these guidelines for optimal readability and presentation effectiveness:
-
-### Content Structure
-- **Lines per slide**: 3-5 lines maximum
-- **Characters per line**: Maximum 50 characters
-- **Text style**: Use concise, declarative form ("である" instead of "です・ます")
-
-### Formatting Rules
-- **Emphasis**: Minimize use of bold text (`**`) - use sparingly for key terms only
-- **Bullet points**: Use simple lists for clear information hierarchy
-- **Consistency**: Maintain uniform formatting throughout all slides
-
-### Writing Style
-- Keep sentences short and direct
-- Focus on key points rather than detailed explanations
-- Use bullet points for complex information
-- Ensure each slide has a single, clear message
-
-These guidelines ensure that slides are readable during presentation and maintain audience engagement.
+Plans are organized in separate directories (`active/`, `completed/`, `archived/`) and follow a consistent template for documentation and tracking.
