@@ -41,6 +41,9 @@ format: str = typer.Option("text", "--format", help="出力形式: text, json, g
 
 # 複数値オプション
 files: list[str] = typer.Option([], "--file", help="対象ファイル")
+
+# サブコマンド引数
+action: str = typer.Argument("default", help="実行アクション")
 ```
 
 ### Rich出力パターン
@@ -186,6 +189,17 @@ def test_command_with_options():
     """オプション付きテスト."""
     result = runner.invoke(app, ["command", "--option", "value"])
     assert result.exit_code == 0
+
+def test_command_with_directory_change():
+    """ディレクトリ変更テスト."""
+    import os
+    original_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        result = runner.invoke(app, ["command"])
+        assert result.exit_code == 0
+    finally:
+        os.chdir(original_cwd)
 ```
 
 #### 外部プロセスモックパターン
