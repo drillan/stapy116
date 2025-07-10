@@ -9,6 +9,21 @@ This repository contains two main components:
 1. **Presentation Project**: A sphinx-revealjs presentation for stapy116
 2. **Sample Project**: PyQC (Python Quality Checker) specifications demonstrating Claude Code methodology
 
+## Presentation Building
+```bash
+# Build presentation slides
+uv run sphinx-build -M revealjs slides slides/_build
+
+# Clean build artifacts
+uv run sphinx-build -M clean slides slides/_build
+
+# Build HTML documentation (alternative output)
+uv run sphinx-build -M html slides slides/_build
+
+# Watch for changes and rebuild (if sphinx-autobuild is installed)
+uv run sphinx-autobuild slides slides/_build/revealjs --builder revealjs
+```
+
 ## Knowledge Organization
 
 Project-specific knowledge is organized in the `.claude/` directory:
@@ -45,6 +60,15 @@ Claude Code will automatically reference the appropriate knowledge files based o
 - **Slide creation/editing**: Uses slides-project.md
 - **PyQC development**: Uses pyqc-spec.md and implementation-notes.md
 - **Project planning**: Uses project-plan.md and sample-project.md
+
+## Architecture
+
+- **slides/**: Sphinx source files for presentation
+  - `conf.py`: Sphinx configuration with MyST parser and sphinx-revealjs extensions
+  - `index.md`: Main presentation slides using MyST syntax
+  - `Makefile`: Standard Sphinx build commands
+  - `_build/revealjs/`: Generated presentation output
+  - `_static/`, `_templates/`: Static assets and custom templates
 
 This organization ensures efficient context usage and maintains clear separation of concerns between the presentation and sample projects.
 
