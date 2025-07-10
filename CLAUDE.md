@@ -47,3 +47,14 @@ Claude Code will automatically reference the appropriate knowledge files based o
 - **Project planning**: Uses project-plan.md and sample-project.md
 
 This organization ensures efficient context usage and maintains clear separation of concerns between the presentation and sample projects.
+
+## Implementation Plans
+
+Implementation plans created by Claude Code are managed in @plans/index.md. This system provides:
+
+- **Structured planning**: Each plan has a unique ID and clear objectives
+- **Progress tracking**: Status and completion tracking for all plans
+- **Historical record**: Completed plans are archived for future reference
+- **Memory efficiency**: Plans are stored separately from core knowledge to avoid context bloat
+
+Plans are organized in separate directories (`active/`, `completed/`, `archived/`) and follow a consistent template for documentation and tracking.
