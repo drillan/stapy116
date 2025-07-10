@@ -5,6 +5,7 @@ This script runs PyQC quality checks with detailed logging for Claude Code hooks
 It wraps the PyQC CLI and provides comprehensive execution tracking.
 """
 
+import logging
 import os
 import subprocess
 import sys
@@ -16,7 +17,19 @@ src_dir = Path(__file__).parent.parent / "src"
 sys.path.insert(0, str(src_dir))
 
 try:
-    from pyqc.utils.logger import get_hooks_logger, log_hooks_execution, log_hooks_start
+    from pyqc.utils.logger import log_hooks_execution, log_hooks_start, setup_logger
+
+    # Set up hooks logger with explicit path to PyQC project directory
+    project_dir = Path(__file__).parent.parent
+    log_dir = project_dir / ".pyqc"
+    log_file = log_dir / "hooks.log"
+
+    def get_hooks_logger() -> logging.Logger:
+        logger: logging.Logger = setup_logger(
+            name="pyqc.hooks", level="INFO", log_file=log_file, use_rich=True
+        )
+        return logger
+
 except ImportError:
     # Fallback if logger is not available
     import logging
@@ -44,7 +57,7 @@ except ImportError:
         if error:
             logger.error(f"Error: {error}")
 
-    def get_hooks_logger() -> logging.Logger:
+    def get_hooks_logger() -> "logging.Logger":
         return logger
 
 
@@ -187,7 +200,21 @@ def main() -> int:
     Returns:
         Exit code (0 for success, 1 for failure)
     """
+    # Initialize logger and log startup information
     logger = get_hooks_logger()
+
+    # Debug information for troubleshooting
+    project_dir = Path(__file__).parent.parent
+    log_dir = project_dir / ".pyqc"
+    log_file = log_dir / "hooks.log"
+
+    logger.info("🔧 PyQC hooks script starting...")
+    logger.info(f"📁 Project directory: {project_dir}")
+    logger.info(f"📁 Log directory: {log_dir}")
+    logger.info(f"📝 Log file: {log_file}")
+    logger.info(f"💼 Current working directory: {os.getcwd()}")
+    logger.info(f"🔧 Log directory exists: {log_dir.exists()}")
+    logger.info(f"📝 Log file exists: {log_file.exists()}")
 
     if len(sys.argv) < 2:
         logger.error("Usage: pyqc_hooks.py <file_path> [file_path2 ...]")
