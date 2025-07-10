@@ -2,9 +2,9 @@
   "hooks": {
     "PostToolUse": {
       "Write,Edit,MultiEdit": {
-        "command": "uv run pyqc check ${file} --output github",
+        "command": "uv run python scripts/pyqc_hooks.py ${file}",
         "onFailure": "warn",
-        "timeout": 10000
+        "timeout": 15000
       }
     }
   }

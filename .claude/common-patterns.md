@@ -832,4 +832,369 @@ uv run pyqc config show
 # 初期化
 uv run pyqc init --with-pre-commit --with-hooks
 ```
+
+## Claude Code Hooks ログ記録パターン
+
+### ログシステム設計
+```python
+from pathlib import Path
+import logging
+from rich.logging import RichHandler
+from rich.console import Console
+
+def setup_logger(
+    name: str = "tool",
+    level: str = "INFO", 
+    log_file: Path | None = None,
+    use_rich: bool = True
+) -> logging.Logger:
+    """ログシステム設定."""
+    logger = logging.getLogger(name)
+    
+    # 重複防止
+    for handler in logger.handlers[:]:
+        logger.removeHandler(handler)
+    
+    logger.setLevel(getattr(logging, level.upper()))
+    
+    # コンソールハンドラー（Rich対応）
+    if use_rich:
+        console_handler = RichHandler(
+            console=Console(stderr=True),
+            show_path=False,
+            show_time=True,
+            markup=True
+        )
+    else:
+        console_handler = logging.StreamHandler()
+    
+    logger.addHandler(console_handler)
+    
+    # ファイルハンドラー
+    if log_file:
+        log_file.parent.mkdir(parents=True, exist_ok=True)
+        file_handler = logging.FileHandler(log_file)
+        file_format = "%(asctime)s | %(name)s | %(levelname)s | %(message)s | %(pathname)s:%(lineno)d"
+        file_handler.setFormatter(logging.Formatter(file_format))
+        logger.addHandler(file_handler)
+    
+    return logger
+```
+
+### Hooks専用スクリプトパターン
+```python
+#!/usr/bin/env python3
+"""Hooks統合スクリプト."""
+
+import os
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+# パス設定
+src_dir = Path(__file__).parent.parent / "src"
+sys.path.insert(0, str(src_dir))
+
+# フォールバック実装
+try:
+    from tool.utils.logger import get_hooks_logger, log_hooks_execution
+except ImportError:
+    import logging
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger("tool.hooks.fallback")
+    
+    def get_hooks_logger():
+        return logger
+    
+    def log_hooks_execution(file_path: str, command: str, success: bool, 
+                          execution_time: float, output: str = "", error: str = ""):
+        status = "SUCCESS" if success else "FAILED"
+        logger.info(f"{status} | {file_path} | {execution_time:.2f}s")
+
+def run_tool_check(file_path: Path) -> tuple[bool, str, str]:
+    """ツール実行."""
+    project_dir = Path(__file__).parent.parent
+    original_cwd = os.getcwd()
+    
+    try:
+        os.chdir(project_dir)
+        
+        command = ["uv", "run", "tool", "check", str(file_path), "--output", "github"]
+        
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        
+        return result.returncode == 0, result.stdout, result.stderr
+        
+    except subprocess.TimeoutExpired:
+        return False, "", "Command timed out"
+    except Exception as e:
+        return False, "", f"Error: {str(e)}"
+    finally:
+        os.chdir(original_cwd)
+
+def process_file(file_path: Path) -> bool:
+    """ファイル処理."""
+    logger = get_hooks_logger()
+    
+    # Python ファイルのみ処理
+    if file_path.suffix != '.py':
+        return True
+    
+    logger.info(f"🔍 Processing {file_path}")
+    
+    start_time = time.time()
+    success, stdout, stderr = run_tool_check(file_path)
+    execution_time = time.time() - start_time
+    
+    # ログ記録
+    command_str = f"uv run tool check {file_path} --output github"
+    log_hooks_execution(
+        file_path=str(file_path),
+        command=command_str,
+        success=success,
+        execution_time=execution_time,
+        output=stdout,
+        error=stderr
+    )
+    
+    # 結果表示
+    if success:
+        logger.info(f"✅ Success ({execution_time:.2f}s)")
+    else:
+        logger.warning(f"⚠️ Issues found ({execution_time:.2f}s)")
+        
+    # GitHub Actions形式出力
+    if stdout.strip():
+        for line in stdout.strip().split('\n'):
+            if line.strip():
+                print(line)
+    
+    return success
+
+def main() -> int:
+    """メイン関数."""
+    if len(sys.argv) < 2:
+        return 1
+    
+    file_paths = [Path(arg) for arg in sys.argv[1:]]
+    all_success = True
+    
+    for file_path in file_paths:
+        try:
+            success = process_file(file_path)
+            if not success:
+                all_success = False
+        except Exception as e:
+            logger = get_hooks_logger()
+            logger.error(f"Error processing {file_path}: {e}")
+            all_success = False
+    
+    return 0 if all_success else 1
+
+if __name__ == "__main__":
+    sys.exit(main())
+```
+
+### Hooks設定パターン
+```json
+{
+  "hooks": {
+    "PostToolUse": {
+      "Write,Edit,MultiEdit": {
+        "command": "uv run python scripts/tool_hooks.py ${file}",
+        "onFailure": "warn",
+        "timeout": 15000
+      }
+    }
+  }
+}
+```
+
+### ログ統計分析パターン
+```python
+def get_hooks_stats() -> dict[str, any]:
+    """ログファイルから統計を生成."""
+    log_file = Path.cwd() / ".tool" / "hooks.log"
+    
+    if not log_file.exists():
+        return {
+            "total_executions": 0,
+            "successful_executions": 0,
+            "failed_executions": 0,
+            "success_rate": 0.0,
+            "average_execution_time": 0.0,
+            "last_execution": None
+        }
+    
+    total = successful = failed = 0
+    execution_times = []
+    last_execution = None
+    
+    try:
+        with open(log_file, 'r') as f:
+            for line in f:
+                if "HOOKS EXECUTION" in line:
+                    total += 1
+                    if "SUCCESS" in line:
+                        successful += 1
+                    elif "FAILED" in line:
+                        failed += 1
+                    
+                    # 実行時間抽出
+                    try:
+                        time_part = line.split("Time: ")[1].split("s")[0]
+                        execution_times.append(float(time_part))
+                    except (IndexError, ValueError):
+                        pass
+                    
+                    # タイムスタンプ抽出
+                    try:
+                        timestamp = line.split(" | ")[0]
+                        last_execution = timestamp
+                    except IndexError:
+                        pass
+    except Exception:
+        pass
+    
+    return {
+        "total_executions": total,
+        "successful_executions": successful,
+        "failed_executions": failed,
+        "success_rate": (successful / total * 100) if total > 0 else 0.0,
+        "average_execution_time": sum(execution_times) / len(execution_times) if execution_times else 0.0,
+        "last_execution": last_execution
+    }
+```
+
+### CLI統合パターン
+```python
+@app.command()
+def hooks(
+    action: str = typer.Argument("stats", help="Action: stats, log, clear"),
+    lines: int = typer.Option(20, "--lines", "-n", help="Lines to show"),
+) -> None:
+    """Hooks管理コマンド."""
+    if action == "stats":
+        show_hooks_stats()
+    elif action == "log":
+        show_hooks_log(lines)
+    elif action == "clear":
+        clear_hooks_log()
+    else:
+        console.print(f"❌ Unknown action: {action}", style="red")
+        sys.exit(1)
+
+def show_hooks_stats() -> None:
+    """統計情報表示."""
+    from tool.utils.logger import get_hooks_stats
+    from rich.table import Table
+    
+    stats = get_hooks_stats()
+    
+    if stats["total_executions"] == 0:
+        console.print("No hooks executions found.")
+        return
+    
+    table = Table(title="Hooks Execution Summary")
+    table.add_column("Metric", style="cyan")
+    table.add_column("Value", style="green")
+    
+    table.add_row("Total Executions", str(stats["total_executions"]))
+    table.add_row("Successful", str(stats["successful_executions"]))
+    table.add_row("Failed", str(stats["failed_executions"]))
+    table.add_row("Success Rate", f"{stats['success_rate']:.1f}%")
+    table.add_row("Average Time", f"{stats['average_execution_time']:.2f}s")
+    table.add_row("Last Execution", stats["last_execution"] or "Never")
+    
+    console.print(table)
+
+def show_hooks_log(lines: int) -> None:
+    """ログ表示."""
+    log_file = Path.cwd() / ".tool" / "hooks.log"
+    
+    if not log_file.exists():
+        console.print("No hooks log file found.")
+        return
+    
+    console.print(f"📋 Last {lines} hooks log entries:", style="bold blue")
+    
+    try:
+        with open(log_file, 'r') as f:
+            log_lines = f.readlines()
+        
+        recent_lines = log_lines[-lines:] if len(log_lines) > lines else log_lines
+        
+        for line in recent_lines:
+            line = line.strip()
+            if line:
+                if "ERROR" in line:
+                    console.print(line, style="red")
+                elif "WARNING" in line:
+                    console.print(line, style="yellow")
+                elif "SUCCESS" in line:
+                    console.print(line, style="green")
+                else:
+                    console.print(line)
+                    
+    except Exception as e:
+        console.print(f"❌ Error reading log: {e}", style="red")
+```
+
+### フォールバック実装パターン
+```python
+# Import防御的実装
+try:
+    from tool.utils.logger import get_hooks_logger, log_hooks_execution, log_hooks_start
+except ImportError:
+    # フォールバック実装
+    import logging
+    logging.basicConfig(level=logging.INFO)
+    fallback_logger = logging.getLogger("tool.hooks.fallback")
+    
+    def log_hooks_start(file_path: str, command: str) -> None:
+        fallback_logger.info(f"START | {file_path}")
+    
+    def log_hooks_execution(file_path: str, command: str, success: bool, 
+                          execution_time: float, output: str = "", error: str = "") -> None:
+        status = "SUCCESS" if success else "FAILED"
+        fallback_logger.info(f"{status} | {file_path} | {execution_time:.2f}s")
+        if output:
+            fallback_logger.debug(f"Output: {output}")
+        if error:
+            fallback_logger.error(f"Error: {error}")
+    
+    def get_hooks_logger():
+        return fallback_logger
+```
+
+### Working Directory管理パターン
+```python
+def safe_working_directory_change(target_dir: Path):
+    """安全なワーキングディレクトリ変更."""
+    original_cwd = os.getcwd()
+    
+    try:
+        os.chdir(target_dir)
+        yield target_dir
+    finally:
+        os.chdir(original_cwd)
+
+# 使用例
+def run_in_project_directory():
+    """プロジェクトディレクトリでの実行."""
+    project_dir = Path(__file__).parent.parent
+    
+    with safe_working_directory_change(project_dir):
+        # この中でプロジェクトディレクトリでコマンド実行
+        result = subprocess.run(["uv", "run", "tool", "check"])
+        return result
+```
+
+このパターン集により、Claude Code hooksの統合が標準化され、他のプロジェクトでも再利用可能なログ記録・監視システムを構築できます。
 ```

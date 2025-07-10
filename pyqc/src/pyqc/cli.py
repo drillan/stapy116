@@ -1,4 +1,7 @@
-"""CLI interface for PyQC."""
+"""CLI interface for PyQC.
+
+This module provides the main CLI interface for the Python Quality Checker tool.
+"""
 
 from __future__ import annotations
 
@@ -488,9 +491,9 @@ def _create_hooks_config(target_path: Path) -> None:
         "hooks": {
             "PostToolUse": {
                 "Write,Edit,MultiEdit": {
-                    "command": "uv run pyqc check ${file} --output github",
+                    "command": "uv run python scripts/pyqc_hooks.py ${file}",
                     "onFailure": "warn",
-                    "timeout": 10000,
+                    "timeout": 15000,
                 }
             }
         }
@@ -503,6 +506,104 @@ def _create_hooks_config(target_path: Path) -> None:
     except Exception as e:
         console.print(f"❌ Error creating hooks config: {e}", style="red")
         raise
+
+
+@app.command()
+def hooks(
+    action: str = typer.Argument("stats", help="Action: stats, log, clear"),
+    lines: int = typer.Option(20, "--lines", "-n", help="Number of log lines to show"),
+) -> None:
+    """Manage and monitor Claude Code hooks."""
+    if action == "stats":
+        _show_hooks_stats()
+    elif action == "log":
+        _show_hooks_log(lines)
+    elif action == "clear":
+        _clear_hooks_log()
+    else:
+        console.print(f"❌ Unknown action: {action}", style="red")
+        console.print("Available actions: stats, log, clear")
+        sys.exit(1)
+
+
+def _show_hooks_stats() -> None:
+    """Show Claude Code hooks execution statistics."""
+    from pyqc.utils.logger import get_hooks_stats
+
+    console.print("📊 Claude Code Hooks Statistics", style="bold blue")
+
+    stats = get_hooks_stats()
+
+    if stats["total_executions"] == 0:
+        console.print(
+            "No hooks executions found. Try editing a Python file to trigger hooks."
+        )
+        return
+
+    table = Table(title="Hooks Execution Summary")
+    table.add_column("Metric", style="cyan")
+    table.add_column("Value", style="green")
+
+    table.add_row("Total Executions", str(stats["total_executions"]))
+    table.add_row("Successful", str(stats["successful_executions"]))
+    table.add_row("Failed", str(stats["failed_executions"]))
+    table.add_row("Success Rate", f"{stats['success_rate']:.1f}%")
+    table.add_row("Average Time", f"{stats['average_execution_time']:.2f}s")
+    table.add_row("Last Execution", stats["last_execution"] or "Never")
+
+    console.print(table)
+
+
+def _show_hooks_log(lines: int) -> None:
+    """Show recent hooks log entries."""
+    log_file = Path.cwd() / ".pyqc" / "hooks.log"
+
+    if not log_file.exists():
+        console.print("No hooks log file found. Hooks haven't been executed yet.")
+        return
+
+    console.print(f"📋 Last {lines} hooks log entries:", style="bold blue")
+
+    try:
+        with open(log_file, encoding="utf-8") as f:
+            log_lines = f.readlines()
+
+        # Show last N lines
+        recent_lines = log_lines[-lines:] if len(log_lines) > lines else log_lines
+
+        for line in recent_lines:
+            line = line.strip()
+            if line:
+                # Color-code based on log level
+                if "ERROR" in line:
+                    console.print(line, style="red")
+                elif "WARNING" in line:
+                    console.print(line, style="yellow")
+                elif "SUCCESS" in line:
+                    console.print(line, style="green")
+                else:
+                    console.print(line)
+
+    except Exception as e:
+        console.print(f"❌ Error reading log file: {e}", style="red")
+
+
+def _clear_hooks_log() -> None:
+    """Clear the hooks log file."""
+    log_file = Path.cwd() / ".pyqc" / "hooks.log"
+
+    if not log_file.exists():
+        console.print("No hooks log file to clear.")
+        return
+
+    if typer.confirm("Are you sure you want to clear the hooks log?"):
+        try:
+            log_file.unlink()
+            console.print("✅ Hooks log cleared successfully.")
+        except Exception as e:
+            console.print(f"❌ Error clearing log file: {e}", style="red")
+    else:
+        console.print("❌ Operation cancelled.")
 
 
 if __name__ == "__main__":

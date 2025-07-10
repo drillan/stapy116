@@ -241,3 +241,118 @@ class Issue:
 - [FastAPI](https://github.com/fastapi/fastapi) - typer使用例
 - [ruff](https://github.com/astral-sh/ruff) - 実装パターン
 - [mypy](https://github.com/python/mypy) - 型チェック統合
+
+## Claude Code Hooks統合パターン
+
+### ログシステム実装
+**`src/pyqc/utils/logger.py`**:
+```python
+def setup_logger(name: str, level: str, log_file: Path, use_rich: bool) -> logging.Logger:
+    """Rich + ファイル出力対応ロガー"""
+    # Rich Handler: 美しいコンソール出力
+    # File Handler: 永続化ログ記録
+    # 構造化フォーマット: 解析可能な形式
+```
+
+**重要な設計決定:**
+- **Rich統合**: コンソール出力の視認性向上
+- **ファイル永続化**: `.pyqc/hooks.log` への構造化ログ
+- **統計分析**: 実行回数、成功率、パフォーマンス追跡
+
+### Hooks専用スクリプト
+**`scripts/pyqc_hooks.py`**:
+```python
+# パターン: 専用ラッパースクリプト
+def process_file(file_path: Path) -> bool:
+    """
+    1. ファイル存在・Python形式チェック
+    2. 実行時間計測開始
+    3. PyQC CLI実行
+    4. 結果ログ記録
+    5. 統計情報更新
+    """
+```
+
+**重要な実装知見:**
+- **Working Directory管理**: pyqcプロジェクトディレクトリへの自動切り替え
+- **エラーハンドリング**: Graceful degradation（非Python ファイルのスキップ）
+- **タイムアウト管理**: 30秒コマンドタイムアウト
+- **フォールバック実装**: import失敗時の基本ログ機能
+
+### Hooks設定パターン
+**`.claude/hooks.json`**:
+```json
+{
+  "hooks": {
+    "PostToolUse": {
+      "Write,Edit,MultiEdit": {
+        "command": "uv run python scripts/pyqc_hooks.py ${file}",
+        "onFailure": "warn",
+        "timeout": 15000
+      }
+    }
+  }
+}
+```
+
+**設計の進化:**
+- **v1**: 直接CLI実行 → ログ記録なし、デバッグ困難
+- **v2**: 専用スクリプト → 包括的ログ、統計情報、エラー処理
+
+### CLI統合パターン
+**新コマンド追加**:
+```python
+@app.command()
+def hooks(action: str, lines: int = 20) -> None:
+    """Hooks監視・管理機能"""
+    # stats: 統計情報表示
+    # log: ログ履歴表示  
+    # clear: ログクリア
+```
+
+**Rich Table活用**:
+- 統計情報の視覚的表示
+- 色分けされたログ出力
+- プロフェッショナルなCLI体験
+
+### 参考実装活用
+**echoes-of-slack/scripts/python_quality_check.py から学習:**
+- **コンテキスト認識**: Claude hooks vs pre-commit での動作切り替え
+- **アプリケーション統合ログ**: 既存ログシステムとの統合
+- **詳細実行記録**: 各ステップの成功/失敗ログ
+- **IS_PRE_COMMIT判定**: 実行環境による出力制御
+
+**適用したパターン:**
+- ログレベルの使い分け（INFO/DEBUG/ERROR）
+- ファイルアクセス権限チェック
+- uv可用性確認
+- 構造化ログフォーマット
+
+### パフォーマンス最適化
+**実行時間管理:**
+- hooks実行: < 15秒（Claude Codeタイムアウト）
+- コマンド実行: < 30秒（subprocess timeout）
+- ログI/O: 非ブロッキング設計
+
+**メモリ効率:**
+- ストリーミングログ処理
+- バッファサイズ制限
+- ログローテーション準備
+
+### 統計分析機能
+**実装パターン:**
+```python
+def get_hooks_stats() -> dict[str, any]:
+    """ログファイル解析による統計情報抽出"""
+    # 正規表現によるログ解析
+    # 実行時間の数値抽出
+    # 成功率の計算
+```
+
+**提供する指標:**
+- 総実行回数
+- 成功/失敗回数と成功率
+- 平均実行時間
+- 最終実行日時
+
+この実装により、Claude Code hooksの透明性と信頼性が大幅に向上し、AI時代の開発フローに適したツールが実現されました。

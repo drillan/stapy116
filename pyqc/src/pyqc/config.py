@@ -1,4 +1,7 @@
-"""Configuration management for PyQC."""
+"""Configuration management for PyQC.
+
+This module handles PyQC configuration loading and validation.
+"""
 
 from __future__ import annotations
 

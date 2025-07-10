@@ -104,6 +104,68 @@ git add .
 git commit -m "Your commit message"
 ```
 
+## Claude Code Hooks 実行ログとモニタリング
+
+### ログ記録機能
+
+PyQCのClaude Code hooksは詳細な実行ログを記録します：
+
+**ログファイル場所**: `.pyqc/hooks.log`
+
+**記録内容**:
+- 実行日時とファイルパス
+- 実行コマンドと引数
+- 実行時間（パフォーマンス情報）
+- 成功/失敗ステータス
+- 詳細なエラー情報
+
+### ログ確認コマンド
+
+#### 統計情報表示
+```bash
+uv run pyqc hooks stats
+```
+実行回数、成功率、平均実行時間を表示
+
+#### ログ履歴表示
+```bash
+# 最新20行を表示
+uv run pyqc hooks log
+
+# 最新50行を表示
+uv run pyqc hooks log --lines 50
+```
+
+#### ログクリア
+```bash
+uv run pyqc hooks clear
+```
+
+### 実行例
+
+#### Claude Code hooks による自動実行
+```
+🚀 PyQC hooks starting - processing 1 file(s)
+🔍 Starting PyQC quality check for src/pyqc/cli.py
+✅ PyQC check completed successfully for src/pyqc/cli.py (0.98s)
+🎉 All PyQC hooks completed successfully
+```
+
+#### 統計情報表示例
+```
+📊 Claude Code Hooks Statistics
+┏━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Metric           ┃ Value                   ┃
+┡━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│ Total Executions │ 15                      │
+│ Successful       │ 14                      │
+│ Failed           │ 1                       │
+│ Success Rate     │ 93.3%                   │
+│ Average Time     │ 1.2s                    │
+│ Last Execution   │ 2025-07-10 14:21:49,576 │
+└──────────────────┴─────────────────────────┘
+```
+
 ### 高度な設定
 
 #### 特定のチェックのみ実行

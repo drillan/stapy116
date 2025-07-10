@@ -1,4 +1,7 @@
-"""Core PyQC functionality - result aggregation and reporting."""
+"""Core PyQC functionality - result aggregation and reporting.
+
+This module provides the main quality checking orchestration and result processing.
+"""
 
 from __future__ import annotations
 
