@@ -346,3 +346,75 @@ class TestCLIIntegration:
         assert "Automatically fix" in result.stdout
         assert "--dry-run" in result.stdout
         assert "--backup" in result.stdout
+
+
+class TestCLIBasic:
+    """Basic CLI functionality tests (migrated from simple test_cli.py)."""
+
+    def test_cli_check_command(self, runner: CliRunner, tmp_path: Path) -> None:
+        """Test the check command in isolated environment."""
+        import os
+
+        # Create a properly formatted Python file in isolated environment
+        test_file = tmp_path / "sample.py"
+        test_file.write_text(
+            'print("hello world")\n'
+        )  # Add newline for proper formatting
+
+        original_cwd = os.getcwd()
+        os.chdir(tmp_path)
+
+        try:
+            result = runner.invoke(app, ["check", "."])
+            # PyQC should run successfully and report results
+            # Exit code 0 = no issues, 1 = issues found, 2+ = execution error
+            assert result.exit_code in [0, 1]  # Accept both no issues and issues found
+            assert "Checking" in result.stdout
+        finally:
+            os.chdir(original_cwd)
+
+    def test_cli_fix_command(self, runner: CliRunner, tmp_path: Path) -> None:
+        """Test the fix command in isolated environment."""
+        import os
+
+        # Create a sample Python file
+        test_file = tmp_path / "sample.py"
+        test_file.write_text('print("hello world")\n')
+
+        original_cwd = os.getcwd()
+        os.chdir(tmp_path)
+
+        try:
+            result = runner.invoke(app, ["fix", "."])
+            assert result.exit_code == 0  # Fix should succeed
+            assert "Fixing" in result.stdout
+        finally:
+            os.chdir(original_cwd)
+
+    def test_cli_config_command(self, runner: CliRunner, tmp_path: Path) -> None:
+        """Test the config command in isolated environment."""
+        import os
+
+        original_cwd = os.getcwd()
+        os.chdir(tmp_path)
+
+        try:
+            result = runner.invoke(app, ["config", "show"])
+            assert result.exit_code == 0
+            assert "Config" in result.stdout
+        finally:
+            os.chdir(original_cwd)
+
+    def test_cli_init_command(self, runner: CliRunner, tmp_path: Path) -> None:
+        """Test the init command in isolated environment."""
+        import os
+
+        original_cwd = os.getcwd()
+        os.chdir(tmp_path)
+
+        try:
+            result = runner.invoke(app, ["init"])
+            assert result.exit_code == 0
+            assert "Initializing" in result.stdout
+        finally:
+            os.chdir(original_cwd)

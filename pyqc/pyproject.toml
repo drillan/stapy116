@@ -88,6 +88,11 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "--cov=src/pyqc --cov-report=term-missing"
+markers = [
+    "integration: marks tests as integration tests (deselect with '-m \"not integration\"')",
+    "unit: marks tests as unit tests",
+    "e2e: marks tests as end-to-end tests"
+]
 
 [tool.coverage.run]
 source = ["src/pyqc"]

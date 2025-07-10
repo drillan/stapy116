@@ -2,8 +2,25 @@ repos:
   - repo: local
     hooks:
       - id: pyqc-check
-        name: PyQC Check
+        name: PyQC Quality Check
         entry: uv --directory pyqc run pyqc check
+        language: system
+        types: [python]
+        pass_filenames: false
+        always_run: true
+        
+      - id: pytest-check
+        name: PyQC Test Suite
+        entry: uv --directory pyqc run pytest
+        args: [
+          "--no-cov",             # カバレッジ無効化（速度優先）
+          "--tb=short",           # 短いトレースバック表示
+          "--maxfail=5",          # 5個失敗で停止（高速化）
+          "-q",                   # 静かなモード（出力簡潔化）
+          "--disable-warnings",   # 警告を無効化（速度優先）
+          "-x",                   # 最初の失敗で停止（さらなる高速化）
+          "-m", "not e2e"         # E2Eテスト除外（高速化）
+        ]
         language: system
         types: [python]
         pass_filenames: false
