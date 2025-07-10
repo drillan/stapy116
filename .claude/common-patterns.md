@@ -587,4 +587,249 @@ def process_files_parallel(
                 console.print(f"❌ エラー {file_path}: {exc}", style="red")
     
     return results
+
+## Hooks統合パターン
+
+### Claude Code hooks設定
+```json
+{
+  "hooks": {
+    "PostToolUse": {
+      "Write,Edit,MultiEdit": {
+        "command": "uv run pyqc check ${file} --output github",
+        "onFailure": "warn",
+        "timeout": 10000
+      }
+    }
+  }
+}
+```
+
+### pre-commit hooks設定
+```yaml
+repos:
+  - repo: local
+    hooks:
+      - id: pyqc-check
+        name: PyQC Check
+        entry: uv --directory pyqc run pyqc check
+        language: system
+        types: [python]
+        pass_filenames: false
+        always_run: true
+```
+
+### hooks初期化コマンドパターン
+```python
+@app.command()
+def init(
+    with_pre_commit: bool = typer.Option(
+        False, "--with-pre-commit", help="pre-commit設定も生成"
+    ),
+    with_hooks: bool = typer.Option(
+        False, "--with-hooks", help="Claude Code hooks設定も生成"
+    ),
+) -> None:
+    """プロジェクト初期化とhooks設定."""
+    console.print("🚀 Initializing PyQC...")
+    
+    # 基本設定
+    create_config_file(target_path)
+    
+    # pre-commit hooks
+    if with_pre_commit:
+        create_pre_commit_config(target_path)
+    
+    # Claude Code hooks
+    if with_hooks:
+        create_claude_hooks_config(target_path)
+```
+
+## Dogfoodingパターン（自己適用）
+
+### 自己品質チェック実装
+```python
+def check_self_quality() -> None:
+    """開発中のツール自身の品質をチェック."""
+    # プロジェクトルート取得
+    project_root = Path(__file__).parent.parent
+    
+    # 自分自身をチェック
+    runner = PyQCRunner(config)
+    results = runner.check_files(project_root)
+    
+    # 問題があれば報告
+    total_issues = sum(len(r.issues) for r in results)
+    if total_issues > 0:
+        console.print(f"⚠️ {total_issues}件の品質問題を発見")
+        console.print("💡 'uv run pyqc fix' で自動修正を試してください")
+    else:
+        console.print("✅ 品質問題なし")
+```
+
+### 段階的品質修正プロセス
+```python
+def fix_quality_issues_step_by_step(project_path: Path) -> None:
+    """段階的な品質問題修正."""
+    console.print("🔧 段階的品質修正を開始...")
+    
+    # 1. 自動修正
+    console.print("Step 1: 自動修正実行")
+    run_auto_fix(project_path)
+    
+    # 2. 残り問題確認
+    console.print("Step 2: 残り問題確認")
+    remaining_issues = check_remaining_issues(project_path)
+    
+    if remaining_issues:
+        console.print(f"⚠️ {len(remaining_issues)}件の手動修正が必要")
+        for issue in remaining_issues:
+            console.print(f"  - {issue.filename}:{issue.line} {issue.message}")
+        console.print("💡 手動修正後に再度チェックしてください")
+    else:
+        console.print("✅ すべての品質問題が解決されました")
+```
+
+## 環境非依存設定パターン
+
+### 相対パス設定
+```bash
+# 問題: 絶対パス依存
+entry: /home/user/project/tool run command
+
+# 解決: プロジェクト相対
+entry: uv --directory project_name run tool command
+```
+
+### 設定テンプレートパターン
+```python
+def create_config_template(project_name: str) -> str:
+    """環境非依存の設定テンプレート生成."""
+    return f"""
+repos:
+  - repo: local
+    hooks:
+      - id: {project_name}-check
+        name: {project_name.title()} Check
+        entry: uv --directory {project_name} run {project_name} check
+        language: system
+        types: [python]
+        pass_filenames: false
+        always_run: true
+"""
+```
+
+## エンドツーエンドテストパターン
+
+### 実プロセス実行テスト
+```python
+import subprocess
+import pytest
+from pathlib import Path
+
+def test_real_cli_execution(tmp_path: Path) -> None:
+    """実際のCLI実行テスト."""
+    # テストプロジェクト作成
+    test_file = tmp_path / "test.py"
+    test_file.write_text("print('hello world')")
+    
+    # 実際のコマンド実行
+    result = subprocess.run(
+        ["uv", "run", "pyqc", "check", "."],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env={**os.environ, "PYTHONPATH": str(PROJECT_ROOT)}
+    )
+    
+    # 結果検証
+    assert result.returncode == 0
+    assert "Checking" in result.stdout
+
+def test_hooks_integration(tmp_path: Path) -> None:
+    """hooks統合テスト."""
+    # Git初期化
+    subprocess.run(["git", "init"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=tmp_path)
+    subprocess.run(["git", "config", "user.name", "Test User"], cwd=tmp_path)
+    
+    # pre-commit設定
+    create_pre_commit_config(tmp_path)
+    subprocess.run(["pre-commit", "install"], cwd=tmp_path, check=True)
+    
+    # テストファイル作成・コミット
+    test_file = tmp_path / "test.py"
+    test_file.write_text("import os\nprint('hello')")  # 未使用インポート
+    
+    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True)
+    
+    # pre-commit実行（hooks動作確認）
+    result = subprocess.run(
+        ["git", "commit", "-m", "test"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True
+    )
+    
+    # hooksが実行され、問題を検出すること
+    assert "PyQC Check" in result.stdout
+```
+
+## コマンド実行パターン
+
+### uvコマンド統一実行
+```bash
+# プロジェクトディレクトリ指定
+uv --directory project_name run command
+
+# 開発依存含む同期
+uv sync --extra dev
+
+# スクリプト実行
+uv run python -m package.module
+
+# パッケージ実行
+uv run package command
+
+# 特定バージョン指定
+uv run --python 3.12 python script.py
+```
+
+### Git操作パターン
+```bash
+# pre-commit初期化
+pre-commit install
+
+# 手動実行
+pre-commit run --all-files
+
+# Git設定（テスト用）
+git config user.email "test@example.com"
+git config user.name "Test User"
+
+# hooks実行確認
+git add . && git commit -m "test commit"
+```
+
+### 品質チェックコマンド
+```bash
+# 基本チェック
+uv run pyqc check .
+
+# 出力形式指定
+uv run pyqc check . --output json
+uv run pyqc check . --output github
+
+# 自動修正
+uv run pyqc fix .
+
+# ドライラン
+uv run pyqc fix . --dry-run
+
+# 設定確認
+uv run pyqc config show
+
+# 初期化
+uv run pyqc init --with-pre-commit --with-hooks
+```
 ```
