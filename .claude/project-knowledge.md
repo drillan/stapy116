@@ -168,6 +168,56 @@ class ConfigurationError(PyQCError):
 - 修正方法の提案
 - 関連ドキュメントへのリンク
 
+## 外部プロセス実行知見
+
+### subprocess実行パターン
+```python
+def run_external_tool(command: list[str], path: Path) -> subprocess.CompletedProcess[str]:
+    """安全な外部ツール実行."""
+    try:
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            check=False  # 手動でエラーチェック
+        )
+    except FileNotFoundError as e:
+        raise FileNotFoundError(f"{command[0]}: command not found") from e
+    
+    # 終了コード判定
+    if result.returncode >= 2:
+        raise RuntimeError(f"{command[0]} execution failed: {result.stderr}")
+    
+    return result
+```
+
+### 出力パーサー設計
+**堅牢性の原則:**
+- 空出力の適切な処理
+- 不正JSON/テキストへの対応
+- 複数行出力の正規表現解析
+- ツールバージョン変更への耐性
+
+**統一フォーマット:**
+```python
+class Issue:
+    filename: str
+    line: int
+    column: int | None
+    severity: str  # error, warning, info, note
+    message: str
+    code: str | None
+    checker: str
+    fixable: bool
+```
+
+### 結果集約パターン
+**統一的な結果管理:**
+- 複数チェッカーの結果をIssueクラスで統一
+- 重要度別集計機能
+- 修正可能問題の識別
+- 実行時間・成功状態の追跡
+
 ## CI/CD統合知見
 
 ### GitHub Actions対応
