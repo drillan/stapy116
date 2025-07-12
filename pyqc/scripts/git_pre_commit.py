@@ -3,6 +3,7 @@
 
 This script runs comprehensive quality checks before Git commits,
 providing pre-commit functionality through Claude Code hooks.
+Supports parallel execution for optimal performance.
 """
 
 import logging
