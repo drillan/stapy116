@@ -158,11 +158,11 @@ def main() -> int:
     """Main function for Git hooks detector.
 
     Reads JSON input from stdin containing Claude Code hook information.
-    Expected format:
+    Expected format for PreToolUse:
     {
+        "hook_event_name": "PreToolUse",
         "tool_name": "Bash",
-        "tool_input": {"command": "git commit -m 'message'", ...},
-        "tool_response": {...}
+        "tool_input": {"command": "git commit -m 'message'", ...}
     }
 
     Returns:
@@ -175,6 +175,14 @@ def main() -> int:
         
         # Read JSON input from stdin
         hook_input = json.load(sys.stdin)
+        
+        # Verify this is a PreToolUse event for Bash
+        event_name = hook_input.get("hook_event_name", "")
+        tool_name = hook_input.get("tool_name", "")
+        
+        if event_name != "PreToolUse" or tool_name != "Bash":
+            logger.debug(f"Skipping non-Bash PreToolUse event: {event_name}/{tool_name}")
+            return 0
         
         # Extract command from tool_input
         tool_input = hook_input.get("tool_input", {})
@@ -193,7 +201,9 @@ def main() -> int:
         
         logger.info(f"🔍 Git commit detected: {command}")
         
-        # Run post-commit processing
+        # Note: This is PreToolUse, so we run post-commit processing
+        # after the git command would complete. We'll run it immediately
+        # since we can't hook into PostToolUse from here.
         success = run_post_commit_processing()
         
         return 0 if success else 1
