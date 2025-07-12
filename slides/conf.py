@@ -16,7 +16,7 @@ author = "driller"
 extensions = ["myst_parser", "sphinx_revealjs", "sphinx_design"]
 
 templates_path = ["_templates"]
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", ".venv"]
 source_suffix = {
     ".rst": "restructuredtext",
     ".md": "markdown",

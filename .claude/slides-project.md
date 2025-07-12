@@ -8,28 +8,35 @@ This is a sphinx-revealjs presentation project for stapy116. The project creates
 
 ### Presentation Building
 ```bash
+# Navigate to slides directory first
+cd slides
+
 # Build presentation slides
-uv run sphinx-build -M revealjs docs docs/_build
+uv run sphinx-build -M revealjs . _build
 
 # Clean build artifacts
-uv run sphinx-build -M clean docs docs/_build
+uv run sphinx-build -M clean . _build
 
 # Build HTML documentation (alternative output)
-uv run sphinx-build -M html docs docs/_build
+uv run sphinx-build -M html . _build
 
 # Watch for changes and rebuild (if sphinx-autobuild is installed)
-uv run sphinx-autobuild docs docs/_build/revealjs --builder revealjs
+uv run sphinx-autobuild . _build/revealjs --builder revealjs
 ```
 
 ### Package Management
 ```bash
+# Navigate to slides directory first
+cd slides
+
 # Install dependencies
 uv sync
 
 # Add new dependency
 uv add package_name
 
-# Install Node.js dependencies for textlint
+# Install Node.js dependencies for textlint (from root directory)
+cd ..
 npm install
 ```
 
@@ -44,16 +51,15 @@ npm run textlint:fix
 
 ## Architecture
 
-- **docs/**: Sphinx source files for presentation
+- **slides/**: Sphinx source files for presentation
   - `conf.py`: Sphinx configuration with MyST parser and sphinx-revealjs extensions
   - `index.md`: Main presentation slides using MyST syntax
   - `Makefile`: Standard Sphinx build commands
   - `_build/revealjs/`: Generated presentation output
   - `_static/`, `_templates/`: Static assets and custom templates
-
-- **pyproject.toml**: Project configuration with dependencies:
-  - `myst-parser>=4.0.1`: Markdown parsing for Sphinx
-  - `sphinx-revealjs>=3.2.0`: Reveal.js presentation generation
+  - `pyproject.toml`: Project configuration with dependencies:
+    - `myst-parser>=4.0.1`: Markdown parsing for Sphinx
+    - `sphinx-revealjs>=3.2.0`: Reveal.js presentation generation
 
 ## Presentation Format
 

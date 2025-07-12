@@ -11,17 +11,20 @@ This repository contains two main components:
 
 ## Presentation Building
 ```bash
+# Navigate to slides directory first
+cd slides
+
 # Build presentation slides
-uv run sphinx-build -M revealjs slides slides/_build
+uv run sphinx-build -M revealjs . _build
 
 # Clean build artifacts
-uv run sphinx-build -M clean slides slides/_build
+uv run sphinx-build -M clean . _build
 
 # Build HTML documentation (alternative output)
-uv run sphinx-build -M html slides slides/_build
+uv run sphinx-build -M html . _build
 
 # Watch for changes and rebuild (if sphinx-autobuild is installed)
-uv run sphinx-autobuild slides slides/_build/revealjs --builder revealjs
+uv run sphinx-autobuild . _build/revealjs --builder revealjs
 ```
 
 ## Knowledge Organization
