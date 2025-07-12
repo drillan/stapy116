@@ -5,17 +5,12 @@
         "command": "uv run python scripts/pyqc_hooks.py ${file}",
         "onFailure": "warn",
         "timeout": 15000
+      },
+      "Bash": {
+        "command": "uv run python scripts/git_hooks_detector.py '${command}' '${output}'",
+        "onFailure": "warn",
+        "timeout": 30000
       }
-    },
-    "PreGitCommit": {
-      "command": "uv run python scripts/git_pre_commit.py",
-      "onFailure": "error",
-      "timeout": 60000
-    },
-    "PostGitCommit": {
-      "command": "uv run python scripts/git_post_commit.py",
-      "onFailure": "warn",
-      "timeout": 15000
     }
   }
 }
