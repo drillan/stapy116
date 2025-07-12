@@ -43,4 +43,6 @@ revealjs_css_files = [
 ]
 revealjs_script_conf = {
     "height": 900,
+    "slideNumber": "c/t",
+    "hash": True,
 }

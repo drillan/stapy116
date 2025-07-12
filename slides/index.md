@@ -4,7 +4,7 @@ Claude Code活用術
 
 [みんなのPython勉強会#116](https://startpython.connpass.com/event/361667/)
 
-driller[@patrqqushe](https://x.com/patraqushe) 2026-07-17
+driller[@patrqqushe](https://x.com/patraqushe) 2025-07-17
 
 ## 注意事項
 
@@ -12,7 +12,7 @@ driller[@patrqqushe](https://x.com/patraqushe) 2026-07-17
 - 発表者個人の経験による主観や感想が含まれています
 - 各プロジェクトの特性に合わせて調整してください
 
-## Claude Codeとは
+## [Claude Code](https://docs.anthropic.com/en/docs/claude-code)とは
 
 AnthropicのClaude AIを活用したCLIツール
 
@@ -111,7 +111,7 @@ AnthropicのClaude AIを活用したCLIツール
 - AIが長時間一貫した判断を下すには明確な指針が必要
 - 複雑なタスクを検証可能な単位に分解
 
-### plan modeの活用
+### [plan mode](https://docs.anthropic.com/en/docs/claude-code/common-workflows#planning-mode)の活用
 
 Shift + Tabで計画モードに切り替え
 
@@ -150,7 +150,7 @@ Shift + Tabで計画モードに切り替え
 
 「think」「think more」「think harder」「ultrathink」で深い思考を促進
 
-### CLAUDE.mdによる設計の一貫性確保
+### [CLAUDE.md](https://docs.anthropic.com/en/docs/claude-code/memory)による設計の一貫性確保
 
 プロジェクトメモリで設計方針を永続化
 
@@ -158,7 +158,7 @@ Shift + Tabで計画モードに切り替え
 - コーディング規約の統一
 - チームワークフローの標準化
 
-### メモリとは
+### [メモリ](https://docs.anthropic.com/en/docs/claude-code/memory)とは
 
 - モデルの応答を「記憶」しておくためのスペース
 - このスペースを「コンテキストウィンドウ」と呼ぶ
@@ -498,9 +498,9 @@ AIが長時間安全にコードを生成するにはガードレールが必要
 
 高品質なコードを継続的に生成
 
-- Ruff: リンター・フォーマッターの統合
-- mypy, ty: 静的型チェッカー
-- pre-commit hooks: コミット前の品質チェック
+- [Ruff](https://docs.astral.sh/ruff/): リンター・フォーマッターの統合
+- [mypy](https://mypy.readthedocs.io/), [ty](https://github.com/astariul/ty): 静的型チェッカー
+- [pre-commit](https://pre-commit.com/) hooks: コミット前の品質チェック
 
 ### 自動的な品質管理
 
@@ -534,7 +534,7 @@ repos:
         types: [python]
 ```
 
-### Claude Code Hooksによる自動化
+### [Claude Code Hooks](https://docs.anthropic.com/en/docs/claude-code/hooks)による自動化
 
 AIコーディングワークフローに統合
 
@@ -636,8 +636,8 @@ AI時代特有の課題に対応
 AIの暴走を防ぐ安全装置
 
 - すべてのアクションに対する承認/拒否機能
-- Escapeキーで中断、ダブルEscapeで履歴を遡る
-- 自動承認モード（Shift+Tab）も可能
+- [Escapeキーで中断、ダブルEscapeで履歴を遡る](https://docs.anthropic.com/en/docs/claude-code/interactive-mode)
+- [自動承認モード（Shift+Tab）も可能](https://docs.anthropic.com/en/docs/claude-code/interactive-mode)
 
 ### 全で有用なAIの実現
 

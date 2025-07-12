@@ -85,3 +85,27 @@ Implementation plans created by Claude Code are managed in @plans/index.md. This
 - **Memory efficiency**: Plans are stored separately from core knowledge to avoid context bloat
 
 Plans are organized in separate directories (`active/`, `completed/`, `archived/`) and follow a consistent template for documentation and tracking.
+
+## MCP Server Integration
+
+This project includes Context7 MCP server integration for enhanced documentation access:
+
+### Context7 Integration
+- **Purpose**: Provides up-to-date documentation for LLMs and AI code editors
+- **Configuration**: Located in `slides/.mcp.json`
+- **Usage**: Add "use context7" to prompts for accurate documentation
+- **Benefits**: Access to current, version-specific code documentation
+
+### MCP Configuration
+```json
+{
+  "mcpServers": {
+    "context7": {
+      "type": "http",
+      "url": "https://mcp.context7.com/mcp"
+    }
+  }
+}
+```
+
+The Context7 server helps solve problems with outdated or hallucinated code examples by fetching current documentation directly from source.
