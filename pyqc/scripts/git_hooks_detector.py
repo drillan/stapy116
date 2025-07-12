@@ -87,6 +87,191 @@ def is_git_commit_command(command: str) -> bool:
     return any(normalized.startswith(pattern) for pattern in git_commit_patterns)
 
 
+def run_pyqc_check() -> tuple[bool, str, str]:
+    """Run PyQC check on all files.
+
+    Returns:
+        Tuple of (success, stdout, stderr)
+    """
+    project_dir = Path(__file__).parent.parent
+    original_cwd = os.getcwd()
+
+    try:
+        os.chdir(project_dir)
+
+        # Build the PyQC command for all files
+        command = ["uv", "run", "pyqc", "check", ".", "--output", "github"]
+
+        # Run the command
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            timeout=20,  # 20 second timeout for PyQC
+        )
+
+        return result.returncode == 0, result.stdout, result.stderr
+
+    except subprocess.TimeoutExpired:
+        return False, "", "PyQC check timed out after 20 seconds"
+    except Exception as e:
+        return False, "", f"Unexpected error in PyQC check: {str(e)}"
+    finally:
+        os.chdir(original_cwd)
+
+
+def run_pytest_check() -> tuple[bool, str, str]:
+    """Run pytest with optimized settings for pre-commit.
+
+    Returns:
+        Tuple of (success, stdout, stderr)
+    """
+    project_dir = Path(__file__).parent.parent
+    original_cwd = os.getcwd()
+
+    try:
+        os.chdir(project_dir)
+
+        # Build optimized pytest command for pre-commit speed
+        command = [
+            "uv", "run", "pytest",
+            "--no-cov",             # Disable coverage for speed
+            "--tb=short",           # Short traceback format
+            "--maxfail=5",          # Stop after 5 failures
+            "-q",                   # Quiet mode
+            "--disable-warnings",   # Disable warnings for speed
+            "-x",                   # Stop on first failure
+            "-m", "not e2e"         # Exclude E2E tests for speed
+        ]
+
+        # Run the command
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            timeout=40,  # 40 second timeout for pytest
+        )
+
+        return result.returncode == 0, result.stdout, result.stderr
+
+    except subprocess.TimeoutExpired:
+        return False, "", "pytest timed out after 40 seconds"
+    except Exception as e:
+        return False, "", f"Unexpected error in pytest: {str(e)}"
+    finally:
+        os.chdir(original_cwd)
+
+
+def run_pre_commit_checks() -> bool:
+    """Run comprehensive pre-commit quality checks.
+
+    Returns:
+        True if all checks passed
+    """
+    logger = get_git_hooks_logger()
+    
+    logger.info("🛡️ Running pre-commit quality checks...")
+    
+    start_time = time.time()
+    
+    try:
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        
+        results = {}
+        
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            # Submit both tasks
+            future_pyqc = executor.submit(run_pyqc_check)
+            future_pytest = executor.submit(run_pytest_check)
+            
+            # Map futures to check names
+            future_to_check = {
+                future_pyqc: "pyqc",
+                future_pytest: "pytest"
+            }
+            
+            # Process completed tasks
+            for future in as_completed(future_to_check):
+                check_name = future_to_check[future]
+                try:
+                    result = future.result()
+                    results[check_name] = result
+                    
+                    success, stdout, stderr = result
+                    status = "✅" if success else "❌"
+                    logger.info(f"{status} {check_name} check completed")
+                    
+                except Exception as e:
+                    logger.error(f"❌ {check_name} check failed with exception: {e}")
+                    results[check_name] = (False, "", str(e))
+        
+        # Calculate execution time
+        execution_time = time.time() - start_time
+        
+        # Check if all passed
+        all_success = all(success for success, _, _ in results.values())
+        
+        # Display results
+        for check_name, (success, stdout, stderr) in results.items():
+            # Log execution
+            log_git_hooks_execution(
+                hook_type="pre-commit",
+                command=f"pre_commit_{check_name}",
+                success=success,
+                execution_time=execution_time,
+                output=stdout,
+                error=stderr,
+            )
+            
+            # Display GitHub Actions format output if any
+            if stdout.strip():
+                for line in stdout.strip().split("\n"):
+                    if line.strip():
+                        print(line)
+                        
+            # Display errors
+            if stderr.strip():
+                logger.error(f"{check_name} error: {stderr}")
+        
+        # Log overall result
+        log_git_hooks_execution(
+            hook_type="pre-commit",
+            command="pre_commit_overall",
+            success=all_success,
+            execution_time=execution_time,
+        )
+        
+        if all_success:
+            logger.info(f"🎉 All pre-commit checks passed! ({execution_time:.2f}s)")
+            logger.info("✅ Ready to commit")
+        else:
+            logger.error(f"❌ Pre-commit checks failed ({execution_time:.2f}s)")
+            logger.error("🚫 Commit blocked - please fix issues before committing")
+            
+            # Display summary of failed checks
+            failed_checks = [
+                check_name for check_name, (success, _, _) in results.items() 
+                if not success
+            ]
+            logger.error(f"Failed checks: {', '.join(failed_checks)}")
+        
+        return all_success
+        
+    except Exception as e:
+        execution_time = time.time() - start_time
+        logger.error(f"💥 Unexpected error in pre-commit checks: {e}")
+        
+        log_git_hooks_execution(
+            hook_type="pre-commit",
+            command="pre_commit_overall",
+            success=False,
+            execution_time=execution_time,
+            error=str(e),
+        )
+        
+        return False
+
+
 def run_post_commit_processing() -> bool:
     """Run post-commit processing.
 
@@ -201,12 +386,21 @@ def main() -> int:
         
         logger.info(f"🔍 Git commit detected: {command}")
         
-        # Note: This is PreToolUse, so we run post-commit processing
-        # after the git command would complete. We'll run it immediately
-        # since we can't hook into PostToolUse from here.
-        success = run_post_commit_processing()
+        # Run pre-commit checks first
+        pre_commit_success = run_pre_commit_checks()
         
-        return 0 if success else 1
+        if not pre_commit_success:
+            logger.error("🚫 Pre-commit checks failed - blocking commit")
+            return 1  # Block the commit
+        
+        # Pre-commit checks passed, allow commit to proceed
+        # Note: Post-commit processing will run after the actual commit
+        logger.info("✅ Pre-commit checks passed - allowing commit")
+        
+        # Run post-commit processing for immediate feedback
+        post_commit_success = run_post_commit_processing()
+        
+        return 0  # Always allow commit if pre-commit passed
         
     except json.JSONDecodeError as e:
         logger.error(f"Failed to parse JSON input: {e}")
