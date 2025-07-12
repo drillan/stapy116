@@ -157,35 +157,53 @@ def run_post_commit_processing() -> bool:
 def main() -> int:
     """Main function for Git hooks detector.
 
-    Args:
-        sys.argv[1]: The bash command that was executed
-        sys.argv[2]: The output from the bash command
+    Reads JSON input from stdin containing Claude Code hook information.
+    Expected format:
+    {
+        "tool_name": "Bash",
+        "tool_input": {"command": "git commit -m 'message'", ...},
+        "tool_response": {...}
+    }
 
     Returns:
         Exit code (0 for success, 1 for failure)
     """
     logger = get_git_hooks_logger()
     
-    if len(sys.argv) < 3:
-        logger.debug("Git hooks detector: insufficient arguments")
-        return 0  # Don't fail, just skip
-    
-    command = sys.argv[1]
-    output = sys.argv[2]
-    
-    logger.debug(f"Git hooks detector checking command: {command}")
-    
-    # Check if this is a git commit command
-    if not is_git_commit_command(command):
-        logger.debug("Not a git commit command, skipping")
-        return 0
-    
-    logger.info(f"🔍 Git commit detected: {command}")
-    
-    # Run post-commit processing
-    success = run_post_commit_processing()
-    
-    return 0 if success else 1
+    try:
+        import json
+        
+        # Read JSON input from stdin
+        hook_input = json.load(sys.stdin)
+        
+        # Extract command from tool_input
+        tool_input = hook_input.get("tool_input", {})
+        command = tool_input.get("command", "")
+        
+        if not command:
+            logger.debug("No command found in hook input")
+            return 0
+        
+        logger.debug(f"Git hooks detector checking command: {command}")
+        
+        # Check if this is a git commit command
+        if not is_git_commit_command(command):
+            logger.debug("Not a git commit command, skipping")
+            return 0
+        
+        logger.info(f"🔍 Git commit detected: {command}")
+        
+        # Run post-commit processing
+        success = run_post_commit_processing()
+        
+        return 0 if success else 1
+        
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse JSON input: {e}")
+        return 0  # Don't fail the hook
+    except Exception as e:
+        logger.error(f"Unexpected error in Git hooks detector: {e}")
+        return 0  # Don't fail the hook
 
 
 if __name__ == "__main__":

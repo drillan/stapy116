@@ -7,7 +7,7 @@
         "timeout": 15000
       },
       "Bash": {
-        "command": "uv run python scripts/git_hooks_detector.py '${command}' '${output}'",
+        "command": "uv run python scripts/git_hooks_detector.py",
         "onFailure": "warn",
         "timeout": 30000
       }
