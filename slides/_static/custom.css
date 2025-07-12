@@ -1,0 +1,17 @@
+.custom {
+    code{
+        font-size: 20px;
+    }
+    max-height: 100%;
+    height: 100%;
+    width: 100%;
+}
+.reveal h1{
+    font-size: 50px;
+}
+.reveal pre{
+    height: 100%;
+}
+.reveal .slides section {
+    height: 80%;
+}

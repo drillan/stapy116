@@ -28,3 +28,19 @@ html_theme = "alabaster"
 html_static_path = ["_static"]
 
 myst_enable_extensions = ["colon_fence"]
+
+revealjs_style_theme = "serif"
+revealjs_static_path = ["_static"]
+revealjs_script_plugins = [
+    {
+        "src": "revealjs/plugin/highlight/highlight.js",
+        "name": "RevealHighlight",
+    },
+]
+revealjs_css_files = [
+    "revealjs/plugin/highlight/zenburn.css",
+    "custom.css"
+]
+revealjs_script_conf = {
+    "height": 900,
+}
