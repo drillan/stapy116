@@ -6,6 +6,16 @@
         "onFailure": "warn",
         "timeout": 15000
       }
+    },
+    "PreGitCommit": {
+      "command": "uv run python scripts/git_pre_commit.py",
+      "onFailure": "error",
+      "timeout": 60000
+    },
+    "PostGitCommit": {
+      "command": "uv run python scripts/git_post_commit.py",
+      "onFailure": "warn",
+      "timeout": 15000
     }
   }
 }
