@@ -19,7 +19,7 @@ src_dir = Path(__file__).parent.parent / "src"
 sys.path.insert(0, str(src_dir))
 
 try:
-    from pyqc.utils.logger import setup_logger
+    from pyqc.utils.logger import setup_logger, log_git_hooks_execution
 
     # Set up git hooks logger
     project_dir = Path(__file__).parent.parent
@@ -42,22 +42,27 @@ except ImportError:
     def get_git_hooks_logger() -> "logging.Logger":
         return logger
 
+    def log_git_hooks_execution(
+        hook_type: str,
+        command: str,
+        success: bool,
+        execution_time: float,
+        output: str = "",
+        error: str = "",
+        commit_hash: str = "",
+    ) -> None:
+        """Fallback logging function for Git hooks execution."""
+        status = "SUCCESS" if success else "FAILED"
+        logger.info(
+            f"GIT_HOOKS | {hook_type.upper()} | {status} | "
+            f"Time: {execution_time:.2f}s | Command: {command}"
+        )
+        if output:
+            logger.debug(f"Output: {output}")
+        if error:
+            logger.error(f"Error: {error}")
 
-def log_git_execution(
-    command: str,
-    success: bool,
-    execution_time: float,
-    output: str = "",
-    error: str = "",
-) -> None:
-    """Log Git hook execution details."""
-    logger = get_git_hooks_logger()
-    status = "SUCCESS" if success else "FAILED"
-    logger.info(f"GIT HOOK | {status} | {command} | Time: {execution_time:.2f}s")
-    if output:
-        logger.debug(f"Output: {output}")
-    if error:
-        logger.error(f"Error: {error}")
+
 
 
 def run_pyqc_check() -> tuple[bool, str, str]:
@@ -233,7 +238,8 @@ def main() -> int:
 
         # Log individual results
         for check_name, (success, stdout, stderr) in results.items():
-            log_git_execution(
+            log_git_hooks_execution(
+                hook_type="pre-commit",
                 command=f"git_pre_commit_{check_name}",
                 success=success,
                 execution_time=overall_execution_time,  # Approximation
@@ -243,6 +249,14 @@ def main() -> int:
 
         # Display results
         all_success = display_results(results)
+
+        # Log overall result
+        log_git_hooks_execution(
+            hook_type="pre-commit",
+            command="git_pre_commit_overall",
+            success=all_success,
+            execution_time=overall_execution_time,
+        )
 
         if all_success:
             logger.info(
