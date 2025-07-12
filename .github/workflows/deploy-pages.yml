@@ -32,7 +32,9 @@ jobs:
           uv sync
 
       - name: Build documentation
-        run: uv run sphinx-build -M revealjs slides slides/_build
+        run: |
+          cd slides
+          uv run sphinx-build -M revealjs . _build
 
       - name: Create .nojekyll
         run: touch slides/_build/revealjs/.nojekyll
