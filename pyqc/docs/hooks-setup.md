@@ -144,18 +144,32 @@ PyQCはClaude Code hooks（PostToolUse）経由でGitコミットを検知し、
 ```json
 {
   "hooks": {
-    "PostToolUse": {
-      "Write,Edit,MultiEdit": {
-        "command": "uv --directory /home/driller/repo/stapy116/pyqc run scripts/pyqc_hooks.py ${file}",
-        "onFailure": "warn",
-        "timeout": 15000
-      },
-      "Bash": {
-        "command": "uv --directory /home/driller/repo/stapy116/pyqc run scripts/git_hooks_detector.py",
-        "onFailure": "warn",
-        "timeout": 30000
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv --directory pyqc run scripts/git_hooks_detector.py",
+            "onFailure": "block",
+            "timeout": 60000
+          }
+        ]
       }
-    }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv --directory pyqc run scripts/claude_hooks.py",
+            "onFailure": "warn",
+            "timeout": 15000
+          }
+        ]
+      }
+    ]
   }
 }
 ```
@@ -163,6 +177,7 @@ PyQCはClaude Code hooks（PostToolUse）経由でGitコミットを検知し、
 ### Git Hooks実行フロー
 
 #### 実際の動作（Post-commit品質チェック）
+<!-- Git hooks統合テスト実行 -->
 1. **Git commit検知**:
    - Claude Code BashツールでGitコミットコマンドを検知
    - JSON形式でコマンド情報を受信
