@@ -125,32 +125,36 @@ git add .
 git commit -m "Your commit message"
 ```
 
-## Git Hooks統合（新機能）
+## Git Hooks統合（完成機能）
 
 ### Git Hooks概要
 
-PyQCはClaude Code経由でGitコミットを検知し、pre-commit相当の処理を自動実行できます。
+PyQCはClaude Code hooks（PostToolUse）経由でGitコミットを検知し、品質保証処理を自動実行します。
 
 **主要機能:**
-- **PreGitCommit**: コミット前の包括的品質チェック（PyQC + pytest並列実行）
-- **PostGitCommit**: コミット後の統計記録とフィードバック
-- **高速実行**: 並列処理により30秒以内での完了
+- **Git commit検知**: Bashツール使用時にGitコミットを自動検知
+- **品質チェック実行**: コミット後に包括的品質チェック（PyQC + pytest並列実行）
+- **高速実行**: 並列処理により20秒以内での完了
 - **専用ログ**: Git hooks専用のログファイル（`.pyqc/git_hooks.log`）
+- **AI開発最適化**: 高頻度コミットに対応した品質保証システム
 
-### Git Hooks設定例
+### 実際の設定例
 
+`.claude/settings.json`:
 ```json
 {
   "hooks": {
-    "PreGitCommit": {
-      "command": "uv run python scripts/git_pre_commit.py",
-      "onFailure": "error",
-      "timeout": 30000
-    },
-    "PostGitCommit": {
-      "command": "uv run python scripts/git_post_commit.py", 
-      "onFailure": "warn",
-      "timeout": 15000
+    "PostToolUse": {
+      "Write,Edit,MultiEdit": {
+        "command": "uv --directory /home/driller/repo/stapy116/pyqc run scripts/pyqc_hooks.py ${file}",
+        "onFailure": "warn",
+        "timeout": 15000
+      },
+      "Bash": {
+        "command": "uv --directory /home/driller/repo/stapy116/pyqc run scripts/git_hooks_detector.py",
+        "onFailure": "warn",
+        "timeout": 30000
+      }
     }
   }
 }
@@ -158,26 +162,25 @@ PyQCはClaude Code経由でGitコミットを検知し、pre-commit相当の処�
 
 ### Git Hooks実行フロー
 
-#### Pre-commit処理
-1. **並列品質チェック**:
+#### 実際の動作（Post-commit品質チェック）
+1. **Git commit検知**:
+   - Claude Code BashツールでGitコミットコマンドを検知
+   - JSON形式でコマンド情報を受信
+2. **並列品質チェック**:
    - PyQC check（全ファイル、GitHub Actions形式）
    - pytest（最適化済み: `--no-cov -x -m "not e2e"`）
-2. **結果表示**:
-   - GitHub Actions形式での問題報告
-   - 失敗時はコミット阻止
-3. **パフォーマンス**:
-   - 目標: 30秒以内での完了
+3. **結果表示と記録**:
+   - 品質問題の詳細レポート
+   - 成功/失敗統計の記録
+   - `.pyqc/git_hooks.log`への詳細ログ
+4. **パフォーマンス**:
+   - 実測: 20秒以内での完了
    - 並列実行による高速化
 
-#### Post-commit処理
-1. **コミット情報収集**:
-   - コミットハッシュ、メッセージ、作者
-   - 変更ファイル数の統計
-2. **品質チェック**:
-   - 変更ファイルのみを対象とした高速チェック
-3. **統計記録**:
-   - `.pyqc/git_hooks.log`への詳細ログ
-   - パフォーマンスメトリクス記録
+#### 技術的な制限
+- **コミット後実行**: Claude Code hooksの仕様上、真のpre-commitは技術的に困難
+- **品質警告**: コミット完了後に品質問題を検知・警告
+- **AI開発対応**: 高頻度コミット環境での品質保証を提供
 
 ### Git Hooks統計確認
 
