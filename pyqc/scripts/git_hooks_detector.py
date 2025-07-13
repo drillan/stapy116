@@ -20,7 +20,7 @@ src_dir = Path(__file__).parent.parent / "src"
 sys.path.insert(0, str(src_dir))
 
 try:
-    from pyqc.utils.logger import setup_logger, log_git_hooks_execution
+    from pyqc.utils.logger import log_git_hooks_execution, setup_logger
 
     # Set up git hooks logger
     project_dir = Path(__file__).parent.parent

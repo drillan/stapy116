@@ -36,7 +36,6 @@ dependencies = [
 dev = [
     "pytest>=8.0.0",
     "pytest-cov>=5.0.0",
-    "pre-commit>=3.0.0",
 ]
 
 [project.urls]
@@ -107,5 +106,6 @@ exclude_lines = [
 
 [dependency-groups]
 dev = [
-    "pre-commit>=4.2.0",
+    "pytest>=8.4.1",
+    "pytest-cov>=6.2.1",
 ]

@@ -1,10 +1,12 @@
 # PyQC Hooks設定ガイド
 
-PyQCは、Claude CodeおよびGitの pre-commit hooks と統合して、コード品質を自動的にチェックできます。
+PyQCは、Claude Code hooks と統合してコード品質を自動的にチェックできます。
+
+**注意**: PyQCはv0.2.0よりClaude Code hooksに統合され、従来のpre-commit hooksは非推奨となりました。Claude Code hooksによりAI開発に最適化された統一的なhooks環境を提供します。
 
 ## Claude Code Hooks
 
-Claude Codeのhooks機能を使用すると、ファイルの編集時に自動的にPyQCチェックが実行されます。
+Claude Codeのhooks機能を使用すると、ファイルの編集時とGitコミット時に自動的にPyQCチェックが実行されます。
 
 ### 設定方法
 
@@ -20,10 +22,20 @@ Claude Codeのhooks機能を使用すると、ファイルの編集時に自動�
      "hooks": {
        "PostToolUse": {
          "Write,Edit,MultiEdit": {
-           "command": "uv run pyqc check ${file} --output github",
+           "command": "uv run python scripts/pyqc_hooks.py ${file}",
            "onFailure": "warn",
-           "timeout": 10000
+           "timeout": 15000
          }
+       },
+       "PreGitCommit": {
+         "command": "uv run python scripts/git_pre_commit.py",
+         "onFailure": "error",
+         "timeout": 30000
+       },
+       "PostGitCommit": {
+         "command": "uv run python scripts/git_post_commit.py",
+         "onFailure": "warn",
+         "timeout": 15000
        }
      }
    }
@@ -31,7 +43,14 @@ Claude Codeのhooks機能を使用すると、ファイルの編集時に自動�
 
 ### 動作確認
 
+**ファイル編集時（PostToolUse）**:
 Claude Codeでファイルを編集すると、自動的にPyQCが実行され、GitHub Actions形式で結果が表示されます。
+
+**Gitコミット時（PreGitCommit）**:
+`git commit`実行時に包括的な品質チェック（PyQC + pytest）が自動実行されます。チェックが失敗するとコミットが阻止されます。
+
+**Gitコミット後（PostGitCommit）**:
+コミット完了後に品質統計とコミット情報がログに記録されます。
 
 ### カスタマイズ
 
@@ -39,18 +58,20 @@ Claude Codeでファイルを編集すると、自動的にPyQCが実行され�
 - `timeout`: タイムアウト時間（ミリ秒）
 - `--output github`: 出力形式の指定
 
-## Pre-commit Hooks
+## 従来のPre-commit Hooks（非推奨）
 
-Gitコミット時に自動的にPyQCチェックと包括的なテストを実行します。
+**⚠️ 非推奨**: 従来のpre-commit hooksはv0.2.0より非推奨となりました。Claude Code hooksをご利用ください。
 
-### 設定方法
+~~Gitコミット時に自動的にPyQCチェックと包括的なテストを実行します。~~
 
-1. **pre-commitのインストール**:
+### ~~設定方法~~（非推奨）
+
+1. **~~pre-commitのインストール~~**:
    ```bash
-   uv add --dev pre-commit
+   # 非推奨: uv add --dev pre-commit
    ```
 
-2. **統合設定ファイルの作成**:
+2. **~~統合設定ファイルの作成~~**:
    
    自動設定:
    ```bash
@@ -102,6 +123,70 @@ uv run pre-commit run --all-files
 # Git commit時に自動実行
 git add .
 git commit -m "Your commit message"
+```
+
+## Git Hooks統合（新機能）
+
+### Git Hooks概要
+
+PyQCはClaude Code経由でGitコミットを検知し、pre-commit相当の処理を自動実行できます。
+
+**主要機能:**
+- **PreGitCommit**: コミット前の包括的品質チェック（PyQC + pytest並列実行）
+- **PostGitCommit**: コミット後の統計記録とフィードバック
+- **高速実行**: 並列処理により30秒以内での完了
+- **専用ログ**: Git hooks専用のログファイル（`.pyqc/git_hooks.log`）
+
+### Git Hooks設定例
+
+```json
+{
+  "hooks": {
+    "PreGitCommit": {
+      "command": "uv run python scripts/git_pre_commit.py",
+      "onFailure": "error",
+      "timeout": 30000
+    },
+    "PostGitCommit": {
+      "command": "uv run python scripts/git_post_commit.py", 
+      "onFailure": "warn",
+      "timeout": 15000
+    }
+  }
+}
+```
+
+### Git Hooks実行フロー
+
+#### Pre-commit処理
+1. **並列品質チェック**:
+   - PyQC check（全ファイル、GitHub Actions形式）
+   - pytest（最適化済み: `--no-cov -x -m "not e2e"`）
+2. **結果表示**:
+   - GitHub Actions形式での問題報告
+   - 失敗時はコミット阻止
+3. **パフォーマンス**:
+   - 目標: 30秒以内での完了
+   - 並列実行による高速化
+
+#### Post-commit処理
+1. **コミット情報収集**:
+   - コミットハッシュ、メッセージ、作者
+   - 変更ファイル数の統計
+2. **品質チェック**:
+   - 変更ファイルのみを対象とした高速チェック
+3. **統計記録**:
+   - `.pyqc/git_hooks.log`への詳細ログ
+   - パフォーマンスメトリクス記録
+
+### Git Hooks統計確認
+
+```bash
+# Git hooks統計表示（将来実装予定）
+uv run pyqc git-hooks stats
+
+# Git hooksログ表示（将来実装予定）
+uv run pyqc git-hooks log
 ```
 
 ## Claude Code Hooks 実行ログとモニタリング

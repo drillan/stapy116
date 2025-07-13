@@ -135,6 +135,57 @@ def log_hooks_start(file_path: str, command: str) -> None:
     logger.info(f"HOOKS START | {file_path} | Command: {command}")
 
 
+def get_git_hooks_logger() -> logging.Logger:
+    """Get a logger specifically configured for Git hooks.
+
+    Returns:
+        Logger instance configured for Git hooks with file logging
+    """
+    log_dir = Path.cwd() / ".pyqc"
+    log_file = log_dir / "git_hooks.log"
+
+    return setup_logger(
+        name="pyqc.git_hooks", level="INFO", log_file=log_file, use_rich=True
+    )
+
+
+def log_git_hooks_execution(
+    hook_type: str,
+    command: str,
+    success: bool,
+    execution_time: float,
+    output: str = "",
+    error: str = "",
+    commit_hash: str = "",
+) -> None:
+    """Log Git hooks execution details.
+
+    Args:
+        hook_type: Type of Git hook (pre-commit, post-commit)
+        command: Command that was executed
+        success: Whether the execution was successful
+        execution_time: Execution time in seconds
+        output: Command output
+        error: Error message if any
+        commit_hash: Git commit hash (for post-commit hooks)
+    """
+    logger = get_git_hooks_logger()
+
+    status = "SUCCESS" if success else "FAILED"
+    commit_info = f" | Commit: {commit_hash}" if commit_hash else ""
+
+    logger.info(
+        f"GIT_HOOKS | {hook_type.upper()} | {status} | "
+        f"Time: {execution_time:.2f}s | Command: {command}{commit_info}"
+    )
+
+    if output:
+        logger.debug(f"Command output: {output}")
+
+    if error:
+        logger.error(f"Command error: {error}")
+
+
 def get_hooks_stats() -> dict[str, Any]:
     """Get statistics from hooks log file.
 
@@ -187,6 +238,80 @@ def get_hooks_stats() -> dict[str, Any]:
 
     return {
         "total_executions": total,
+        "successful_executions": successful,
+        "failed_executions": failed,
+        "success_rate": (successful / total * 100) if total > 0 else 0.0,
+        "average_execution_time": sum(execution_times) / len(execution_times)
+        if execution_times
+        else 0.0,
+        "last_execution": last_execution,
+    }
+
+
+def get_git_hooks_stats() -> dict[str, Any]:
+    """Get statistics from Git hooks log file.
+
+    Returns:
+        Dictionary with Git hooks execution statistics
+    """
+    log_file = Path.cwd() / ".pyqc" / "git_hooks.log"
+
+    if not log_file.exists():
+        return {
+            "total_executions": 0,
+            "pre_commit_executions": 0,
+            "post_commit_executions": 0,
+            "successful_executions": 0,
+            "failed_executions": 0,
+            "success_rate": 0.0,
+            "average_execution_time": 0.0,
+            "last_execution": None,
+        }
+
+    total = 0
+    pre_commit = 0
+    post_commit = 0
+    successful = 0
+    failed = 0
+    execution_times = []
+    last_execution = None
+
+    try:
+        with open(log_file, encoding="utf-8") as f:
+            for line in f:
+                if "GIT_HOOKS" in line:
+                    total += 1
+
+                    if "PRE-COMMIT" in line:
+                        pre_commit += 1
+                    elif "POST-COMMIT" in line:
+                        post_commit += 1
+
+                    if "SUCCESS" in line:
+                        successful += 1
+                    elif "FAILED" in line:
+                        failed += 1
+
+                    # Extract execution time
+                    try:
+                        time_part = line.split("Time: ")[1].split("s")[0]
+                        execution_times.append(float(time_part))
+                    except (IndexError, ValueError):
+                        pass
+
+                    # Extract timestamp for last execution
+                    try:
+                        timestamp = line.split(" | ")[0]
+                        last_execution = timestamp
+                    except IndexError:
+                        pass
+    except Exception:
+        pass
+
+    return {
+        "total_executions": total,
+        "pre_commit_executions": pre_commit,
+        "post_commit_executions": post_commit,
         "successful_executions": successful,
         "failed_executions": failed,
         "success_rate": (successful / total * 100) if total > 0 else 0.0,

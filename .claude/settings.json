@@ -1,0 +1,30 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv --directory /home/driller/repo/stapy116/pyqc run scripts/git_hooks_detector.py",
+            "onFailure": "block",
+            "timeout": 60000
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv --directory /home/driller/repo/stapy116/pyqc run scripts/pyqc_hooks.py ${file}",
+            "onFailure": "warn",
+            "timeout": 15000
+          }
+        ]
+      }
+    ]
+  }
+}
