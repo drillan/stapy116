@@ -4,7 +4,7 @@
 This script detects Git commit commands executed via Bash tool
 and runs appropriate pre/post commit quality checks.
 Integrates with Claude Code PostToolUse hooks for Bash commands.
-Testing with .claude/settings.json configuration.
+Testing with pyqc/.claude/settings.json configuration.
 """
 
 import json
