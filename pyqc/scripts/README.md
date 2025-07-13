@@ -4,129 +4,177 @@ This directory contains utility scripts for PyQC Claude Code hooks integration.
 
 ## Scripts
 
-### `pyqc_hooks.py`
+### `claude_hooks.py` (統合スクリプト)
 
-A comprehensive wrapper script for PyQC that provides detailed logging and monitoring for Claude Code hooks.
+**メインのClaude Code hooks統合スクリプト**。JSON入力を処理し、PyQC品質チェックを実行します。
 
-**Features:**
-- Comprehensive PyQC execution logging
-- Real-time performance monitoring
-- Context-aware output formatting
-- Error handling and timeout management
-- Integration with PyQC logging system
+**機能:**
+- JSON入力からファイルパス自動抽出
+- 統合されたPyQC品質チェック実行
+- 非Pythonファイルの適切なスキップ
+- 包括的なログ記録とエラーハンドリング
+- AI開発ワークフロー最適化
 
-**Usage:**
+**使用方法:**
 ```bash
-# Direct execution
-uv run python scripts/pyqc_hooks.py <file_path>
+# 手動実行（デバッグ用）
+echo '{"tool_input":{"file_path":"/path/to/file.py"}}' | uv run scripts/claude_hooks.py
 
-# With Claude hooks (automatic)
-# Runs automatically when editing Python files
+# Claude hooks経由（自動実行）
+# Python ファイル編集時に自動実行
 ```
 
-**Logging Output:**
-The script records detailed execution information to `.pyqc/hooks.log`:
-- Execution timestamp and file path
-- Command executed and arguments
-- Execution time and performance metrics
-- Success/failure status
-- Detailed error information
+### `git_hooks_detector.py` (Git統合)
 
-## Integration with Development Workflow
+**Gitコミット検知・品質保証スクリプト**。Bashコマンドを監視し、Git操作時に包括的品質チェックを実行します。
 
-### Claude Hooks (Development Time)
-- Automatically runs on Python file edits via `.claude/hooks.json`
-- Provides immediate feedback with rich logging
-- Records comprehensive execution history
-- Helps maintain code quality during development
+**機能:**
+- Gitコミットコマンドの自動検知
+- pre-commit品質チェック（PyQC + pytest並列実行）
+- post-commit処理とログ記録
+- 非Gitコマンドの適切なスキップ
+- 高頻度コミット環境への最適化
 
-### Hooks Configuration
-The script is integrated via `.claude/hooks.json`:
+**使用方法:**
+```bash
+# 通常のGitコミット時に自動実行
+git commit -m "commit message"
+
+# 手動実行（デバッグ用）
+echo '{"tool_input":{"command":"git commit -m test"}}' | uv run scripts/git_hooks_detector.py
+```
+
+### `pyqc_hooks.py` (レガシー)
+
+**従来の引数ベースhooksスクリプト**。新しい統合方式移行後も互換性のために維持。
+
+**使用方法:**
+```bash
+# 直接実行
+uv run scripts/pyqc_hooks.py <file_path>
+```
+
+## Claude Code Hooks統合
+
+### 最終形態設定
+
+`.claude/settings.json`の推奨設定：
+
 ```json
 {
   "hooks": {
-    "PostToolUse": {
-      "Write,Edit,MultiEdit": {
-        "command": "uv run python scripts/pyqc_hooks.py ${file}",
-        "onFailure": "warn",
-        "timeout": 15000
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv --directory /path/to/pyqc run scripts/git_hooks_detector.py",
+            "onFailure": "block",
+            "timeout": 60000
+          }
+        ]
       }
-    }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv --directory /path/to/pyqc run scripts/claude_hooks.py",
+            "onFailure": "warn",
+            "timeout": 15000
+          }
+        ]
+      }
+    ]
   }
 }
 ```
 
-## Monitoring and Management
+### 実行フロー
 
-### CLI Commands
-PyQC provides built-in commands to monitor hooks execution:
+#### 1. ファイル編集時（PostToolUse）
+1. Claude Codeがファイル編集を検知
+2. JSONデータを`claude_hooks.py`にstdin経由で送信
+3. ファイルパスを抽出してPyQC品質チェックを実行
+4. 結果をログに記録
 
-```bash
-# View execution statistics
-uv run pyqc hooks stats
+#### 2. Gitコミット時（PreToolUse）
+1. Claude CodeがBashコマンド（`git commit`）を検知
+2. `git_hooks_detector.py`がGitコマンドか判定
+3. pre-commit品質チェック（PyQC + pytest並列実行）
+4. 成功時のみコミット許可、post-commit処理実行
 
-# View recent log entries
-uv run pyqc hooks log
+## ログとモニタリング
 
-# Clear log history
-uv run pyqc hooks clear
+### ログファイル
+
+- **`.pyqc/hooks.log`**: PostToolUse hooks（ファイル編集）のログ
+- **`.pyqc/git_hooks.log`**: PreToolUse hooks（Git操作）のログ
+
+### ログ内容例
+
+```
+2025-07-13 16:53:24,492 | 🔍 Git commit detected: git commit -m "feat: 新機能追加"
+2025-07-13 16:53:27,536 | ✅ pyqc check completed
+2025-07-13 16:53:44,540 | ✅ pytest check completed  
+2025-07-13 16:53:44,552 | 🎉 All pre-commit checks passed! (20.04s)
 ```
 
-### Log Analysis
-The logging system provides:
-- **Execution tracking**: Every hooks run is logged
-- **Performance monitoring**: Execution time measurement
-- **Success rate analysis**: Statistical overview
-- **Error diagnostics**: Detailed failure information
+## AI開発最適化
 
-## Troubleshooting
+### 高頻度コミット対応
 
-### Common Issues
+- **並列実行**: PyQC + pytest同時実行で時間短縮
+- **スキップ機能**: 非Pythonファイル・非Gitコマンドの適切なスキップ
+- **タイムアウト管理**: 適切なタイムアウト設定でブロック回避
+- **非ブロッキング**: ファイル編集時は警告レベルで継続可能
 
-1. **Script not found**: Ensure the script is in the `scripts/` directory
-2. **Permission errors**: Make sure the script is executable (`chmod +x`)
-3. **Import errors**: Verify PyQC is properly installed with `uv sync`
-4. **Timeout issues**: Check if timeout setting (15s) is appropriate
+### パフォーマンス
 
-### Debug Mode
+- **PostToolUse**: ファイル編集時 < 3秒
+- **PreToolUse**: Git pre-commit < 30秒（目標20秒）
+- **キャッシュ活用**: PyQCの内蔵キャッシュで高速化
 
-For detailed debugging, check the hooks log:
+## トラブルシューティング
+
+### 一般的な問題
+
+1. **パス問題**: フルパス指定で解決（`/home/driller/repo/stapy116/pyqc`）
+2. **権限エラー**: `uv run`使用で実行権限不要
+3. **JSON解析エラー**: stdin入力の確認
+4. **タイムアウト**: 大規模プロジェクトでの設定調整
+
+### デバッグ方法
+
 ```bash
-# View recent executions
-uv run pyqc hooks log --lines 50
+# 品質チェック状況確認
+uv run pyqc check .
 
-# Check execution statistics
-uv run pyqc hooks stats
+# hooks ログ確認  
+tail -f .pyqc/hooks.log
+tail -f .pyqc/git_hooks.log
+
+# 手動Git hooks テスト
+echo '{"tool_input":{"command":"git status"}}' | uv run scripts/git_hooks_detector.py
 ```
 
-### Performance Optimization
+## 最適化のポイント
 
-The script is optimized for hooks usage:
-- **Timeout management**: 30-second command timeout
-- **Error isolation**: Graceful handling of failures
-- **Context switching**: Automatic directory management
-- **Efficient logging**: Structured log format
+### 開発ワークフロー統合
 
-## Dependencies
+- **リアルタイム品質保証**: ファイル編集時の即座なフィードバック
+- **コミット時品質ゲート**: 包括的なpre-commit検証
+- **非干渉設計**: 通常の開発作業をブロックしない
+- **ログベース追跡**: 全操作の完全な記録
 
-The script uses:
-- `uv` for Python environment management
-- PyQC CLI for quality checking
-- PyQC logging utilities for structured logging
-- Standard subprocess module for command execution
+### AI開発特有の考慮事項
 
-## Best Practices
+- **高頻度操作対応**: AI編集による頻繁なファイル変更に対応
+- **自動品質管理**: 人間の品質チェック負荷を軽減
+- **客観的品質指標**: 機械的な品質測定による一貫性
+- **迅速なフィードバック**: AI開発の高速イテレーションサイクルに対応
 
-### Hooks Usage
-- **File targeting**: Only processes Python files
-- **Non-blocking**: Continues development even on failures
-- **Informative**: Provides clear success/failure feedback
-- **Traceable**: Maintains complete execution history
-
-### Development Integration
-- **Real-time feedback**: Immediate quality check results
-- **Performance awareness**: Execution time monitoring
-- **Historical analysis**: Long-term quality trend tracking
-- **Error resolution**: Detailed diagnostic information
-
-This script serves as a bridge between Claude Code's hooks system and PyQC's quality checking capabilities, providing comprehensive monitoring and logging for AI-driven development workflows.
+この統合システムにより、Claude CodeとPyQCが完全に統合され、AI時代の開発ワークフローに最適化された品質保証システムが実現されます。
