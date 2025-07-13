@@ -849,3 +849,189 @@ After Claude Fix:
 - AI時代の品質管理のリファレンス実装
 
 この方針確立により、機械的自動化と人間的判断の最適バランスが実現され、AI協調開発の新しいモデルが確立された。
+
+## Claude Code Hooks統合 最終形態実装の試行錯誤 (2025-07-13)
+
+### 🎯 ${file}変数問題への取り組み
+
+#### 問題の発見
+**初期課題**: Claude Code hooks設定の`${file}`変数が期待通りに展開されない
+```json
+// 動作しない設定例
+{
+  "command": "uv --directory pyqc run scripts/pyqc_hooks.py ${file}",
+  "onFailure": "warn"
+}
+```
+
+**症状**:
+- `sys.argv`にファイルパスが含まれない
+- "Usage: pyqc_hooks.py <file_path>" エラーが継続発生
+- 編集時のhooks実行が失敗
+
+#### 試行錯誤のプロセス
+
+**試行1: jq + xargsアプローチ**
+```json
+"command": "jq -r '.tool_input.file_path' | xargs uv --directory pyqc run scripts/pyqc_hooks.py"
+```
+**結果**: パイプライン処理の複雑性、安定性の問題
+
+**試行2: 中間ファイル方式**
+```json 
+"command": "jq -r '.tool_input.file_path' > /tmp/file_path.txt && xargs uv --directory pyqc run scripts/pyqc_hooks.py < /tmp/file_path.txt"
+```
+**結果**: ファイル作成されず、設定反映に問題
+
+**試行3: 統合スクリプトアプローチ（成功）**
+```json
+"command": "uv --directory pyqc run scripts/claude_hooks.py"
+```
+**結果**: JSON stdin処理により完全解決
+
+### 🔧 最終形態の実装知見
+
+#### 統合アーキテクチャの設計
+**PostToolUse（ファイル編集時）**:
+- `claude_hooks.py`: JSON入力→ファイルパス抽出→PyQC実行
+- 非ブロッキング設計（`onFailure: "warn"`）
+- 3秒以内の高速レスポンス
+
+**PreToolUse（Git操作時）**:
+- `git_hooks_detector.py`: Git commit検知→包括的品質チェック
+- ブロッキング設計（`onFailure: "block"`）
+- 並列実行による20秒以内完了
+
+#### JSON処理パターンの確立
+```python
+def process_json_input() -> str | None:
+    """Claude Code hooks標準JSON処理パターン"""
+    try:
+        hook_input = json.load(sys.stdin)
+        tool_input = hook_input.get("tool_input", {})
+        file_path = tool_input.get("file_path", "")
+        
+        if not file_path:
+            logger.warning("No file_path found in hook input")
+            return None
+            
+        return str(file_path)
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse JSON input: {e}")
+        return None
+```
+
+### 📚 パス管理の重要な学習
+
+#### フルパス指定の必要性
+**問題**: 相対パス（`uv --directory pyqc`）での実行時エラー
+**解決**: フルパス（`uv --directory /home/driller/repo/stapy116/pyqc`）
+
+**原因分析**:
+- Claude Code実行時の作業ディレクトリが変動
+- 相対パス解決の不確実性
+- 再起動後の設定リセット影響
+
+#### Git hooks検知の最適化
+**重要な実装**: 非Gitコマンドの適切なスキップ
+```python
+def is_git_commit_command(command: str) -> bool:
+    """Gitコミットコマンドのみを正確に識別"""
+    patterns = ["git commit", "git commit -m", "git commit --message"]
+    normalized = command.strip().replace('"', "").replace("'", "")
+    return any(normalized.startswith(pattern) for pattern in patterns)
+```
+
+**効果**: 通常のBash操作（`cd`, `ls`, `uv run`等）でhooksが無駄に発火しない
+
+### 🔄 設定の進化プロセス
+
+#### 設定変更とClaude Code再起動の関係
+**重要な発見**: 設定変更後の即座反映には`/exit`による再起動が必要
+
+**進化の軌跡**:
+1. **初期設定**: `${file}`変数使用（動作せず）
+2. **jq試行**: 複雑な設定（不安定）
+3. **統合設計**: JSON stdin処理（安定動作）
+4. **パス修正**: フルパス指定（完全解決）
+
+#### デバッグ手法の確立
+**効果的なアプローチ**:
+1. **ログ確認**: `.pyqc/hooks.log`, `.pyqc/git_hooks.log`
+2. **sys.argv出力**: デバッグ情報の詳細記録
+3. **段階的テスト**: 小さな変更での動作確認
+4. **再起動検証**: 設定反映の確実な確認
+
+### 🚀 並列品質チェックの実現
+
+#### Git hooks統合の包括的品質保証
+**実装成果**:
+```python
+with ThreadPoolExecutor(max_workers=2) as executor:
+    futures = [
+        executor.submit(run_pyqc_check),
+        executor.submit(run_pytest_check)
+    ]
+    results = [future.result() for future in as_completed(futures)]
+```
+
+**実証結果**:
+- PyQC + pytest並列実行: ~20秒
+- 全品質チェック通過: Total issues 0
+- AI開発高頻度コミットに対応
+
+### 🎯 AI開発特化設計の価値
+
+#### 高頻度操作への最適化
+**設計思想**:
+- PostToolUse: 非ブロッキング（開発継続性）
+- PreToolUse: 品質ゲート（品質保証）
+- 適切なタイムアウト設定（開発速度とのバランス）
+
+**実現効果**:
+- AI編集による頻繁なファイル変更に適応
+- 人間の品質チェック負荷を大幅軽減
+- 客観的・一貫した品質測定
+- 迅速なフィードバックサイクル
+
+### 🔧 品質問題の段階的解決
+
+#### 実装過程で発生した品質問題
+**問題**: 型アノテーション、未使用import、lint問題
+**対処法**:
+1. **PyQC自動修正**: `uv run pyqc fix .`
+2. **手動修正**: 型アノテーション追加、import整理
+3. **最終検証**: 全品質チェック通過確認
+
+**成果**: Total issues 0達成
+
+### 💡 汎用性の高い学習
+
+#### Claude Code hooks統合の標準パターン
+**確立されたベストプラクティス**:
+1. **JSON stdin処理**: hooks標準仕様への準拠
+2. **統合スクリプト**: 中間処理による柔軟性
+3. **フルパス設定**: 環境非依存の安定動作
+4. **責任分離**: PostToolUse/PreToolUseの明確な役割分担
+5. **ログ分離**: 操作種別による完全な記録分離
+
+#### 他プロジェクトへの適用可能性
+**汎用パターン**:
+- この統合手法はPyQC固有ではない
+- 任意のCLIツールとClaude Code hooksの統合に適用可能
+- AI時代の開発ワークフロー最適化のリファレンス実装
+
+### 🎉 最終成果
+
+#### 技術的達成
+- **${file}変数問題**: 完全解決
+- **統合品質保証**: PostToolUse + PreToolUse
+- **パフォーマンス**: 目標時間内達成
+- **品質**: Total issues 0
+
+#### プロセス的達成  
+- **問題解決**: 段階的な試行錯誤による根本解決
+- **知識蓄積**: 再現可能な実装パターンの確立
+- **ドキュメント**: 包括的な知見の記録
+
+この統合実装により、Claude CodeとPyQCが完全に融合し、AI時代の開発ワークフローに最適化された品質保証システムが実現された。
