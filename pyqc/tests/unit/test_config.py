@@ -19,6 +19,7 @@ class TestPyQCConfig:
         assert config.line_length == 88
         assert config.type_checker == "mypy"
         assert config.parallel is True
+        assert config.exclude == []
 
         # Test nested configs
         assert isinstance(config.ruff, RuffConfig)
@@ -65,6 +66,20 @@ class TestPyQCConfig:
         with pytest.raises(ValueError):
             PyQCConfig(type_checker="invalid")
 
+    def test_exclude_configuration(self) -> None:
+        """Test exclude patterns configuration."""
+        # Test default (empty list)
+        config = PyQCConfig()
+        assert config.exclude == []
+
+        # Test with exclude patterns
+        config = PyQCConfig(exclude=["sample_project", "test_data"])
+        assert config.exclude == ["sample_project", "test_data"]
+
+        # Test empty exclude list
+        config = PyQCConfig(exclude=[])
+        assert config.exclude == []
+
 
 class TestConfigFileLoading:
     """Test configuration file loading."""
@@ -77,6 +92,7 @@ class TestConfigFileLoading:
 line-length = 100
 type-checker = "mypy"
 parallel = false
+exclude = ["sample_project", "test_data"]
 
 [tool.pyqc.ruff]
 extend-select = ["E", "F"]
@@ -93,6 +109,7 @@ ignore_missing_imports = false
         assert config.line_length == 100
         assert config.type_checker == "mypy"
         assert config.parallel is False
+        assert config.exclude == ["sample_project", "test_data"]
 
         assert config.ruff.extend_select == ["E", "F"]
         assert config.ruff.ignore == ["E203"]
