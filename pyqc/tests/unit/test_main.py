@@ -26,7 +26,6 @@ def test_main_module_execution() -> None:
     assert "check" in result.stdout
     assert "fix" in result.stdout
     assert "config" in result.stdout
-    assert "init" in result.stdout
 
 
 def test_main_module_invalid_command() -> None:

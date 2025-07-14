@@ -73,7 +73,7 @@ class TestLoadConfig:
         pyproject_toml.write_text("""
 [tool.pyqc]
 line_length = 120
-type_checker = "ty"
+type_checker = "mypy"
 
 [tool.pyqc.ruff]
 extend_select = ["I"]
@@ -81,7 +81,7 @@ extend_select = ["I"]
 
         config = load_config(tmp_path)
         assert config.line_length == 120
-        assert config.type_checker == "ty"
+        assert config.type_checker == "mypy"
         assert config.ruff.extend_select == ["I"]
 
     def test_load_config_with_pyqc_yaml(self, tmp_path: Path) -> None:

@@ -4,10 +4,10 @@
 
 ## 特徴
 
-- **統合チェック**: ruff（リント・フォーマット）とmypy/ty（型チェック）を統合
+- **統合チェック**: ruff（リント・フォーマット）とmypy（型チェック）を統合
 - **自動修正**: 一般的なコード品質問題を自動修正
 - **柔軟な設定**: pyproject.toml、YAML設定ファイルをサポート
-- **CI/CD統合**: GitHub Actions形式出力、pre-commit hooksサポート
+- **CI/CD統合**: GitHub Actions形式出力
 - **高速実行**: 並列チェックによるパフォーマンス最適化
 - **Claude Code hooks**: リアルタイム品質チェック
 
@@ -57,9 +57,6 @@ uv run pyqc check
 
 # 自動修正可能な問題を修正
 uv run pyqc fix
-
-# プロジェクトに初期化
-uv run pyqc init --with-pre-commit --with-hooks
 ```
 
 ## サンプルプロジェクトでの試用
@@ -203,25 +200,8 @@ uv run pyqc config show
 
 # 設定を変更
 uv run pyqc config set line_length 100
-uv run pyqc config set type_checker ty
 ```
 
-### `pyqc init`
-プロジェクト初期化
-
-```bash
-# 基本的な初期化
-uv run pyqc init
-
-# pre-commit設定も生成
-uv run pyqc init --with-pre-commit
-
-# Claude Code hooks設定も生成
-uv run pyqc init --with-hooks
-
-# 型チェッカーを指定
-uv run pyqc init --type-checker ty
-```
 
 ### `pyqc hooks`
 Claude Code hooks管理
@@ -346,18 +326,6 @@ uv run pyqc hooks validate
 2. `.claude/settings.json`は自動的に.gitignoreされる
 3. `.claude/settings.json.template`がリポジトリで管理される
 
-### pre-commit設定
-```yaml
-repos:
-  - repo: local
-    hooks:
-      - id: pyqc-check
-        name: PyQC Quality Check
-        entry: uv run pyqc check
-        language: system
-        types: [python]
-```
-
 ## 出力形式
 
 ### Text形式（デフォルト）
@@ -417,7 +385,6 @@ stapy116/
 - ✅ 並列実行
 - ✅ Claude Code hooks統合
 - ✅ 環境非依存hooks設定管理
-- ✅ pre-commit hooks統合
 
 **計画中の機能**:
 - 📋 プラグインシステム
@@ -429,7 +396,7 @@ stapy116/
 
 - **言語**: Python 3.12+
 - **CLI**: typer + rich
-- **品質ツール**: ruff, mypy/ty
+- **品質ツール**: ruff, mypy
 - **設定**: pydantic + tomllib/yaml
 - **テスト**: pytest（カバレッジ: 75%）
 

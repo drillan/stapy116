@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import subprocess
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -21,11 +20,6 @@ class TestTypeChecker:
         checker = TypeChecker()
         assert checker.checker_type == "mypy"
         assert isinstance(checker.config, TypeCheckerConfig)
-
-    def test_init_with_checker_type(self) -> None:
-        """Test initialization with specific checker type."""
-        checker = TypeChecker(checker_type="ty")
-        assert checker.checker_type == "ty"
 
     def test_init_with_config(self) -> None:
         """Test initialization with configuration."""
@@ -53,26 +47,6 @@ class TestTypeChecker:
         assert "--ignore-missing-imports" in command
         assert "--show-error-codes" in command
         assert "test.py" in command
-
-    def test_build_command_ty_basic(self) -> None:
-        """Test basic ty command building."""
-        config = TypeCheckerConfig(strict=False, ignore_missing_imports=False)
-        checker = TypeChecker(checker_type="ty", config=config)
-        command = checker._build_command(Path("test.py"))
-
-        expected = ["ty", "check", "test.py"]
-        assert command == expected
-
-    def test_build_command_ty_with_config(self) -> None:
-        """Test ty command building with configuration."""
-        config = TypeCheckerConfig(strict=True, ignore_missing_imports=True)
-        checker = TypeChecker(checker_type="ty", config=config)
-        command = checker._build_command(Path("test.py"))
-
-        assert "ty" in command
-        assert "check" in command
-        assert "test.py" in command
-        # ty may have different flag names
 
 
 class TestTypeCheckerMypy:
@@ -157,73 +131,6 @@ test.py:20: note: Consider using "isinstance" instead"""
             checker.check_types(Path("test.py"))
 
 
-class TestTypeCheckerTy:
-    """Test ty-specific functionality."""
-
-    @patch("subprocess.run")
-    def test_check_types_ty_success_no_issues(self, mock_run: Mock) -> None:
-        """Test ty type check with no issues."""
-        mock_run.return_value = subprocess.CompletedProcess(
-            args=["ty", "check", "test.py"], returncode=0, stdout="", stderr=""
-        )
-
-        checker = TypeChecker(checker_type="ty")
-        issues = checker.check_types(Path("test.py"))
-
-        assert issues == []
-        mock_run.assert_called_once()
-
-    @patch("subprocess.run")
-    def test_check_types_ty_with_issues(self, mock_run: Mock) -> None:
-        """Test ty type check with issues found."""
-        # ty might output JSON format (this is hypothetical)
-        ty_output = json.dumps(
-            [
-                {
-                    "filename": "test.py",
-                    "line": 10,
-                    "column": 5,
-                    "severity": "error",
-                    "message": "Type mismatch: expected int, got str",
-                    "code": "type-mismatch",
-                }
-            ]
-        )
-
-        mock_run.return_value = subprocess.CompletedProcess(
-            args=["ty", "check", "test.py"],
-            returncode=1,  # Issues found
-            stdout=ty_output,
-            stderr="",
-        )
-
-        checker = TypeChecker(checker_type="ty")
-        issues = checker.check_types(Path("test.py"))
-
-        assert len(issues) == 1
-
-        issue = issues[0]
-        assert issue["filename"] == "test.py"
-        assert issue["line"] == 10
-        assert issue["column"] == 5
-        assert issue["severity"] == "error"
-        assert issue["code"] == "type-mismatch"
-
-    @patch("subprocess.run")
-    def test_check_types_ty_execution_error(self, mock_run: Mock) -> None:
-        """Test ty type check with execution error."""
-        mock_run.return_value = subprocess.CompletedProcess(
-            args=["ty", "check", "test.py"],
-            returncode=2,  # Execution error
-            stdout="",
-            stderr="ty: error: File not found",
-        )
-
-        checker = TypeChecker(checker_type="ty")
-        with pytest.raises(RuntimeError, match="ty execution failed"):
-            checker.check_types(Path("test.py"))
-
-
 class TestTypeCheckerConfiguration:
     """Test Type checker configuration handling."""
 
@@ -290,34 +197,6 @@ test.py:20: note: Consider using isinstance instead"""
         assert issues[1]["severity"] == "warning"
         assert issues[2]["severity"] == "note"
 
-    def test_parse_ty_output_json(self) -> None:
-        """Test parsing ty JSON output."""
-        output = json.dumps(
-            [
-                {
-                    "filename": "test.py",
-                    "line": 10,
-                    "column": 5,
-                    "severity": "error",
-                    "message": "Type error",
-                    "code": "type-error",
-                }
-            ]
-        )
-
-        checker = TypeChecker(checker_type="ty")
-        issues = checker._parse_ty_output(output)
-
-        assert len(issues) == 1
-        assert issues[0]["filename"] == "test.py"
-
-    def test_parse_ty_output_invalid_json(self) -> None:
-        """Test parsing invalid ty JSON output."""
-        checker = TypeChecker(checker_type="ty")
-
-        with pytest.raises(json.JSONDecodeError):
-            checker._parse_ty_output("invalid json")
-
 
 class TestTypeCheckerIntegration:
     """Integration tests for Type checker (require mypy/ty installed)."""
@@ -345,26 +224,3 @@ result: int = add_numbers("hello", "world")
 
         except FileNotFoundError:
             pytest.skip("mypy not installed in test environment")
-
-    @pytest.mark.integration
-    def test_real_ty_execution(self, tmp_path: Path) -> None:
-        """Test with real ty execution (requires ty to be installed)."""
-        # Create a test Python file with type issues
-        test_file = tmp_path / "test_types.py"
-        test_file.write_text("""
-def greet(name: str) -> str:
-    return f"Hello, {name}!"
-
-# This should cause a type error
-greeting: str = greet(42)
-""")
-
-        checker = TypeChecker(checker_type="ty")
-
-        try:
-            issues = checker.check_types(test_file)
-            # Should find type issues or return empty list
-            assert isinstance(issues, list)
-
-        except (FileNotFoundError, ValueError):
-            pytest.skip("ty not installed or not supported in test environment")

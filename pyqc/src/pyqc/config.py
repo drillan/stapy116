@@ -44,7 +44,7 @@ class PyQCConfig(BaseModel):
     @classmethod
     def validate_type_checker(cls, v: str) -> str:
         """Validate type checker choice."""
-        allowed = {"mypy", "ty"}
+        allowed = {"mypy"}
         if v not in allowed:
             raise ValueError(f"type_checker must be one of {allowed}, got {v!r}")
         return v

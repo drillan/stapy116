@@ -1,8 +1,7 @@
-"""Type checking wrapper for mypy/ty."""
+"""Type checking wrapper for mypy."""
 
 from __future__ import annotations
 
-import json
 import re
 import subprocess
 from pathlib import Path
@@ -12,13 +11,13 @@ from pyqc.config import TypeCheckerConfig
 
 
 class TypeChecker:
-    """Type checker wrapper for mypy/ty."""
+    """Type checker wrapper for mypy."""
 
     def __init__(
         self, checker_type: str = "mypy", config: TypeCheckerConfig | None = None
     ) -> None:
         """Initialize type checker with configuration."""
-        if checker_type not in ("mypy", "ty"):
+        if checker_type != "mypy":
             raise ValueError(f"Unsupported type checker: {checker_type}")
 
         self.checker_type = checker_type
@@ -26,28 +25,19 @@ class TypeChecker:
 
     def _build_command(self, path: Path) -> list[str]:
         """Build type checker command with configuration options."""
-        if self.checker_type == "mypy":
-            command = ["mypy"]
+        command = ["mypy"]
 
-            # Add standard mypy options for consistent output
-            command.extend(["--show-error-codes", "--no-error-summary"])
+        # Add standard mypy options for consistent output
+        command.extend(["--show-error-codes", "--no-error-summary"])
 
-            # Add configuration options
-            if self.config.strict:
-                command.append("--strict")
+        # Add configuration options
+        if self.config.strict:
+            command.append("--strict")
 
-            if self.config.ignore_missing_imports:
-                command.append("--ignore-missing-imports")
+        if self.config.ignore_missing_imports:
+            command.append("--ignore-missing-imports")
 
-            command.append(str(path))
-
-        elif self.checker_type == "ty":
-            command = ["ty", "check"]
-
-            # ty specific options would go here
-            # Note: ty is less common, so options may vary
-
-            command.append(str(path))
+        command.append(str(path))
 
         return command
 
@@ -72,12 +62,7 @@ class TypeChecker:
         if result.returncode >= 2:
             raise RuntimeError(f"{self.checker_type} execution failed: {result.stderr}")
 
-        if self.checker_type == "mypy":
-            return self._parse_mypy_output(result.stdout)
-        elif self.checker_type == "ty":
-            return self._parse_ty_output(result.stdout)
-
-        return []
+        return self._parse_mypy_output(result.stdout)
 
     def _parse_mypy_output(self, output: str) -> list[dict[str, Any]]:
         """Parse mypy output format."""
@@ -117,21 +102,3 @@ class TypeChecker:
                 )
 
         return issues
-
-    def _parse_ty_output(self, output: str) -> list[dict[str, Any]]:
-        """Parse ty output format."""
-        if not output.strip():
-            return []
-
-        try:
-            # Assume ty outputs JSON format (this is hypothetical)
-            data = json.loads(output)
-            if isinstance(data, list):
-                # Add checker field to each issue
-                for issue in data:
-                    issue["checker"] = "ty"
-                return data
-            return []
-        except json.JSONDecodeError as e:
-            # If not JSON, try to parse as text format
-            raise json.JSONDecodeError(f"Invalid JSON from ty: {output}", "", 0) from e

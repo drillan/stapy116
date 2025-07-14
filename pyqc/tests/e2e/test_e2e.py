@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 import subprocess
 from pathlib import Path
 
@@ -194,26 +193,6 @@ class TestEndToEnd:
         assert "PyQC Configuration" in result.stdout
         assert "Line Length" in result.stdout
         assert "88" in result.stdout
-
-    def test_init_command(self, tmp_path: Path) -> None:
-        """Test init command."""
-        empty_project = tmp_path / "empty_project"
-        empty_project.mkdir()
-
-        result = subprocess.run(
-            ["uv", "run", "pyqc", "init"],
-            capture_output=True,
-            text=True,
-            cwd=empty_project,
-            env={
-                **os.environ,
-                "PYQC_ROOT": str(Path(__file__).parent.parent.parent),
-            },
-        )
-
-        assert result.returncode == 0
-        assert "Initializing PyQC" in result.stdout
-        assert (empty_project / "pyproject.toml").exists()
 
     def test_parallel_execution_performance(self, sample_project: Path) -> None:
         """Test parallel execution performance."""

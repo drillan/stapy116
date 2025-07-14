@@ -61,9 +61,6 @@ class TestPyQCConfig:
         config = PyQCConfig(type_checker="mypy")
         assert config.type_checker == "mypy"
 
-        config = PyQCConfig(type_checker="ty")
-        assert config.type_checker == "ty"
-
         # Invalid values should be rejected
         with pytest.raises(ValueError):
             PyQCConfig(type_checker="invalid")
@@ -78,7 +75,7 @@ class TestConfigFileLoading:
         config_file.write_text("""
 [tool.pyqc]
 line-length = 100
-type-checker = "ty"
+type-checker = "mypy"
 parallel = false
 
 [tool.pyqc.ruff]
@@ -94,7 +91,7 @@ ignore_missing_imports = false
         config = PyQCConfig.load_from_file(config_file)
 
         assert config.line_length == 100
-        assert config.type_checker == "ty"
+        assert config.type_checker == "mypy"
         assert config.parallel is False
 
         assert config.ruff.extend_select == ["E", "F"]
@@ -158,7 +155,7 @@ pyqc:
 
     def test_save_to_toml(self, tmp_path: Path) -> None:
         """Test saving config to TOML file."""
-        config = PyQCConfig(line_length=100, type_checker="ty", parallel=False)
+        config = PyQCConfig(line_length=100, type_checker="mypy", parallel=False)
         config_file = tmp_path / "saved.toml"
 
         config.save(config_file)
@@ -167,7 +164,7 @@ pyqc:
         assert config_file.exists()
         loaded_config = PyQCConfig.load_from_file(config_file)
         assert loaded_config.line_length == 100
-        assert loaded_config.type_checker == "ty"
+        assert loaded_config.type_checker == "mypy"
         assert loaded_config.parallel is False
 
     def test_save_to_yaml(self, tmp_path: Path) -> None:
@@ -237,12 +234,12 @@ class TestConfigDiscovery:
         config_file.write_text("""
 [tool.pyqc]
 line-length = 95
-type-checker = "ty"
+type-checker = "mypy"
 """)
 
         config = PyQCConfig.load(tmp_path)
         assert config.line_length == 95
-        assert config.type_checker == "ty"
+        assert config.type_checker == "mypy"
 
     def test_load_with_no_config_found(self, tmp_path: Path) -> None:
         """Test loading with no config file found returns defaults."""

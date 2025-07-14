@@ -262,59 +262,6 @@ class TestConfigCommand:
         assert "Unknown action" in result.stdout
 
 
-class TestInitCommand:
-    """Test the init command."""
-
-    def test_init_basic(self, runner: CliRunner, tmp_path: Path) -> None:
-        """Test basic initialization."""
-        import os
-
-        original_cwd = os.getcwd()
-        os.chdir(tmp_path)
-
-        try:
-            result = runner.invoke(app, ["init"])
-
-            assert result.exit_code == 0
-            assert "Initializing PyQC" in result.stdout
-            assert "initialization completed" in result.stdout
-            assert (tmp_path / "pyproject.toml").exists()
-        finally:
-            os.chdir(original_cwd)
-
-    def test_init_with_pre_commit(self, runner: CliRunner, tmp_path: Path) -> None:
-        """Test initialization with pre-commit hooks."""
-        import os
-
-        original_cwd = os.getcwd()
-        os.chdir(tmp_path)
-
-        try:
-            result = runner.invoke(app, ["init", "--with-pre-commit"])
-
-            assert result.exit_code == 0
-            assert "Generating pre-commit configuration" in result.stdout
-            assert (tmp_path / ".pre-commit-config.yaml").exists()
-        finally:
-            os.chdir(original_cwd)
-
-    def test_init_with_hooks(self, runner: CliRunner, tmp_path: Path) -> None:
-        """Test initialization with Claude Code hooks."""
-        import os
-
-        original_cwd = os.getcwd()
-        os.chdir(tmp_path)
-
-        try:
-            result = runner.invoke(app, ["init", "--with-hooks"])
-
-            assert result.exit_code == 0
-            assert "Generating Claude Code hooks configuration" in result.stdout
-            assert (tmp_path / ".claude" / "hooks.json").exists()
-        finally:
-            os.chdir(original_cwd)
-
-
 class TestCLIIntegration:
     """Integration tests for CLI."""
 
@@ -327,7 +274,6 @@ class TestCLIIntegration:
         assert "check" in result.stdout
         assert "fix" in result.stdout
         assert "config" in result.stdout
-        assert "init" in result.stdout
 
     def test_check_help(self, runner: CliRunner) -> None:
         """Test check command help."""
@@ -402,19 +348,5 @@ class TestCLIBasic:
             result = runner.invoke(app, ["config", "show"])
             assert result.exit_code == 0
             assert "Config" in result.stdout
-        finally:
-            os.chdir(original_cwd)
-
-    def test_cli_init_command(self, runner: CliRunner, tmp_path: Path) -> None:
-        """Test the init command in isolated environment."""
-        import os
-
-        original_cwd = os.getcwd()
-        os.chdir(tmp_path)
-
-        try:
-            result = runner.invoke(app, ["init"])
-            assert result.exit_code == 0
-            assert "Initializing" in result.stdout
         finally:
             os.chdir(original_cwd)
