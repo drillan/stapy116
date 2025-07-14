@@ -209,3 +209,9 @@ __marimo__/
 # This project
 node_modules
 _build
+
+# Claude Code hooks設定（環境依存の絶対パス含有）
+.claude/settings.json
+
+# テンプレートは管理対象
+!.claude/settings.json.template

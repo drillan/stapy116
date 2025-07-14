@@ -510,7 +510,9 @@ def _create_hooks_config(target_path: Path) -> None:
 
 @app.command()
 def hooks(
-    action: str = typer.Argument("stats", help="Action: stats, log, clear"),
+    action: str = typer.Argument(
+        "stats", help="Action: stats, log, clear, setup, validate, migrate"
+    ),
     lines: int = typer.Option(20, "--lines", "-n", help="Number of log lines to show"),
 ) -> None:
     """Manage and monitor Claude Code hooks."""
@@ -520,9 +522,15 @@ def hooks(
         _show_hooks_log(lines)
     elif action == "clear":
         _clear_hooks_log()
+    elif action == "setup":
+        _setup_hooks_config()
+    elif action == "validate":
+        _validate_hooks_config()
+    elif action == "migrate":
+        _migrate_hooks_config()
     else:
         console.print(f"❌ Unknown action: {action}", style="red")
-        console.print("Available actions: stats, log, clear")
+        console.print("Available actions: stats, log, clear, setup, validate, migrate")
         sys.exit(1)
 
 
@@ -604,6 +612,311 @@ def _clear_hooks_log() -> None:
             console.print(f"❌ Error clearing log file: {e}", style="red")
     else:
         console.print("❌ Operation cancelled.")
+
+
+def _detect_project_structure() -> tuple[Path, Path]:
+    """Detect PyQC project structure and return project root and pyqc directory.
+
+    Returns:
+        Tuple of (project_root, pyqc_directory)
+    """
+    current_dir = Path.cwd()
+
+    # Look for pyqc directory in current and parent directories
+    for dir_path in [current_dir] + list(current_dir.parents):
+        pyqc_dir = dir_path / "pyqc"
+        if pyqc_dir.exists() and (pyqc_dir / "src" / "pyqc").exists():
+            return dir_path, pyqc_dir
+
+    # If not found, assume we're in the pyqc directory itself
+    if (current_dir / "src" / "pyqc").exists():
+        return current_dir.parent, current_dir
+
+    # Last resort: assume current directory is project root
+    pyqc_dir = current_dir / "pyqc"
+    return current_dir, pyqc_dir
+
+
+def _setup_hooks_config() -> None:
+    """Set up environment-independent Claude Code hooks configuration."""
+    console.print("🚀 Setting up Claude Code hooks configuration...", style="bold blue")
+
+    try:
+        # Detect project structure
+        project_root, pyqc_dir = _detect_project_structure()
+
+        console.print(f"📁 Detected project root: {project_root}")
+        console.print(f"📁 Detected PyQC directory: {pyqc_dir}")
+
+        # Create .claude directory if it doesn't exist
+        claude_dir = project_root / ".claude"
+        claude_dir.mkdir(exist_ok=True)
+
+        settings_file = claude_dir / "settings.json"
+
+        # Check if settings.json already exists
+        if settings_file.exists():
+            console.print(
+                f"⚠️ Settings file already exists: {settings_file}", style="yellow"
+            )
+            if not typer.confirm(
+                "Do you want to overwrite it? (Backup will be created)"
+            ):
+                console.print("❌ Setup cancelled.")
+                return
+
+            # Create backup
+            backup_file = settings_file.with_suffix(".json.backup")
+            settings_file.rename(backup_file)
+            console.print(f"📄 Backup created: {backup_file}")
+
+        # Generate environment-specific configuration using absolute paths (required by uv --directory)
+        hooks_config = {
+            "hooks": {
+                "PreToolUse": [
+                    {
+                        "matcher": "Bash",
+                        "hooks": [
+                            {
+                                "type": "command",
+                                "command": f"uv --directory {pyqc_dir} run scripts/git_hooks_detector.py",
+                                "onFailure": "block",
+                                "timeout": 60000,
+                            }
+                        ],
+                    }
+                ],
+                "PostToolUse": [
+                    {
+                        "matcher": "Write|Edit|MultiEdit",
+                        "hooks": [
+                            {
+                                "type": "command",
+                                "command": f"uv --directory {pyqc_dir} run scripts/claude_hooks.py",
+                                "onFailure": "warn",
+                                "timeout": 15000,
+                            }
+                        ],
+                    }
+                ],
+            }
+        }
+
+        # Write new configuration
+        with open(settings_file, "w") as f:
+            json.dump(hooks_config, f, indent=2)
+
+        console.print(f"✅ Created new hooks configuration: {settings_file}")
+        console.print("\n📋 Configuration details:")
+        console.print(f"   Project root: {project_root}")
+        console.print(f"   PyQC directory: {pyqc_dir}")
+        console.print(f"   Commands use 'uv --directory {pyqc_dir}' (absolute path required)")
+        console.print("\n⚠️ Note: This configuration contains environment-specific absolute paths")
+        console.print("   Add .claude/settings.json to .gitignore for team development")
+
+        console.print(
+            "\n🔄 Please restart Claude Code to activate the new hooks configuration."
+        )
+
+    except Exception as e:
+        console.print(f"❌ Error setting up hooks configuration: {e}", style="red")
+        sys.exit(1)
+
+
+def _validate_hooks_config() -> None:
+    """Validate the current Claude Code hooks configuration."""
+    console.print("🔍 Validating Claude Code hooks configuration...", style="bold blue")
+
+    try:
+        # Detect project structure
+        project_root, pyqc_dir = _detect_project_structure()
+
+        claude_dir = project_root / ".claude"
+        settings_file = claude_dir / "settings.json"
+
+        if not settings_file.exists():
+            console.print(f"❌ No settings file found: {settings_file}", style="red")
+            console.print("💡 Run 'uv run pyqc hooks setup' to create configuration.")
+            return
+
+        # Load and validate configuration
+        with open(settings_file) as f:
+            config = json.load(f)
+
+        # Check basic structure
+        if "hooks" not in config:
+            console.print("❌ No 'hooks' section found in configuration", style="red")
+            return
+
+        # Validate hook scripts exist
+        required_scripts = [
+            pyqc_dir / "scripts" / "git_hooks_detector.py",
+            pyqc_dir / "scripts" / "claude_hooks.py",
+        ]
+
+        all_valid = True
+        for script in required_scripts:
+            if script.exists():
+                console.print(f"✅ Script found: {script}")
+            else:
+                console.print(f"❌ Script missing: {script}", style="red")
+                all_valid = False
+
+        # Check for invalid relative paths in uv --directory commands
+        config_str = json.dumps(config, indent=2)
+        has_invalid_paths = False
+
+        # Look for relative paths in --directory (which don't work)
+        for line in config_str.split("\n"):
+            if "--directory" in line:
+                # Extract the path after --directory
+                parts = line.split("--directory")
+                if len(parts) > 1:
+                    path_part = parts[1].strip().split()[0].strip('"')
+                    # Check if path is relative (doesn't start with / or contain :)
+                    if not (path_part.startswith("/") or ":" in path_part):
+                        console.print("❌ Found relative path in uv --directory command", style="red")
+                        console.print(f"   Problem line: {line.strip()}")
+                        console.print(f"   Relative path: {path_part}")
+                        console.print("   uv --directory requires absolute paths")
+                        has_invalid_paths = True
+                        all_valid = False
+
+        if has_invalid_paths:
+            console.print("💡 Run 'uv run pyqc hooks migrate' to fix relative path issues")
+        else:
+            # Check if we have proper absolute paths in --directory commands
+            has_directory_commands = "--directory" in config_str
+            if has_directory_commands:
+                console.print("✅ uv --directory commands use absolute paths (correct)")
+            else:
+                console.print("⚠️ No uv --directory commands found", style="yellow")
+
+        if all_valid:
+            console.print("✅ Configuration validation passed!", style="green")
+            console.print("📋 Summary:")
+            console.print(f"   Settings file: {settings_file}")
+            console.print(f"   Project root: {project_root}")
+            console.print(f"   PyQC directory: {pyqc_dir}")
+        else:
+            console.print("❌ Configuration validation failed", style="red")
+
+    except json.JSONDecodeError as e:
+        console.print(f"❌ Invalid JSON in settings file: {e}", style="red")
+    except Exception as e:
+        console.print(f"❌ Error validating configuration: {e}", style="red")
+
+
+def _migrate_hooks_config() -> None:
+    """Migrate existing hooks configuration to environment-independent format."""
+    console.print("🔄 Migrating hooks configuration...", style="bold blue")
+
+    try:
+        # Detect project structure
+        project_root, pyqc_dir = _detect_project_structure()
+
+        claude_dir = project_root / ".claude"
+        settings_file = claude_dir / "settings.json"
+
+        if not settings_file.exists():
+            console.print(f"❌ No settings file found: {settings_file}", style="red")
+            console.print("💡 Run 'uv run pyqc hooks setup' to create configuration.")
+            return
+
+        # Load existing configuration
+        with open(settings_file) as f:
+            config = json.load(f)
+
+        # Check if migration is needed (look for old cd format or relative --directory paths)
+        config_str = json.dumps(config, indent=2)
+        needs_migration = False
+        
+        # Check for old cd format
+        if "cd " in config_str:
+            console.print("🔍 Found old 'cd' format commands")
+            needs_migration = True
+        
+        # Check for relative paths in --directory (which don't work)
+        for line in config_str.split("\n"):
+            if "--directory" in line:
+                # Extract the path after --directory
+                parts = line.split("--directory")
+                if len(parts) > 1:
+                    path_part = parts[1].strip().split()[0].strip('"')
+                    # Check if path is relative (doesn't start with / or contain :)
+                    if not (path_part.startswith("/") or ":" in path_part):
+                        console.print(f"🔍 Found relative path in uv --directory: {path_part}")
+                        needs_migration = True
+                        break
+        
+        if not needs_migration:
+            console.print(
+                "✅ Configuration is already using correct absolute paths!", style="green"
+            )
+            return
+
+        console.print(
+            "🔍 Found environment-dependent configuration, proceeding with migration..."
+        )
+
+        # Create backup
+        backup_file = settings_file.with_suffix(".json.migrate_backup")
+        settings_file.rename(backup_file)
+        console.print(f"📄 Backup created: {backup_file}")
+
+        # Create new environment-specific configuration using absolute paths (required by uv --directory)
+        new_config = {
+            "hooks": {
+                "PreToolUse": [
+                    {
+                        "matcher": "Bash",
+                        "hooks": [
+                            {
+                                "type": "command",
+                                "command": f"uv --directory {pyqc_dir} run scripts/git_hooks_detector.py",
+                                "onFailure": "block",
+                                "timeout": 60000,
+                            }
+                        ],
+                    }
+                ],
+                "PostToolUse": [
+                    {
+                        "matcher": "Write|Edit|MultiEdit",
+                        "hooks": [
+                            {
+                                "type": "command",
+                                "command": f"uv --directory {pyqc_dir} run scripts/claude_hooks.py",
+                                "onFailure": "warn",
+                                "timeout": 15000,
+                            }
+                        ],
+                    }
+                ],
+            }
+        }
+
+        # Write migrated configuration
+        with open(settings_file, "w") as f:
+            json.dump(new_config, f, indent=2)
+
+        console.print(f"✅ Migration completed: {settings_file}")
+        console.print("\n📋 Migration summary:")
+        console.print(f"   Backup: {backup_file}")
+        console.print(f"   New config: {settings_file}")
+        console.print(f"   Updated to use absolute paths (required by uv --directory)")
+        console.print(f"   Commands use 'uv --directory {pyqc_dir}'")
+        console.print("\n⚠️ Note: Configuration now contains environment-specific absolute paths")
+        console.print("   Recommend adding .claude/settings.json to .gitignore")
+
+        console.print(
+            "\n🔄 Please restart Claude Code to activate the migrated configuration."
+        )
+
+    except json.JSONDecodeError as e:
+        console.print(f"❌ Invalid JSON in settings file: {e}", style="red")
+    except Exception as e:
+        console.print(f"❌ Error migrating configuration: {e}", style="red")
 
 
 if __name__ == "__main__":

@@ -223,6 +223,30 @@ uv run pyqc init --with-hooks
 uv run pyqc init --type-checker ty
 ```
 
+### `pyqc hooks`
+Claude Code hooks管理
+
+```bash
+# hooks統計情報を表示
+uv run pyqc hooks stats
+
+# 最近のhooksログを表示（デフォルト20行）
+uv run pyqc hooks log
+uv run pyqc hooks log --lines 50
+
+# hooksログをクリア
+uv run pyqc hooks clear
+
+# 環境非依存な設定を自動生成
+uv run pyqc hooks setup
+
+# 設定の妥当性を検証
+uv run pyqc hooks validate
+
+# 既存設定を環境非依存形式に移行
+uv run pyqc hooks migrate
+```
+
 ## 設定
 
 ### pyproject.toml
@@ -256,24 +280,71 @@ pyqc:
 
 ## Claude Code統合
 
-### hooksファイル設定
+### 自動セットアップ（推奨）
 
-`.claude/hooks.json`を作成：
+環境固有の設定を自動生成：
+
+```bash
+# 現在の環境に最適化された.claude/settings.jsonを自動生成
+uv run pyqc hooks setup
+
+# 設定が正しく生成されたか確認
+uv run pyqc hooks validate
+```
+
+**利点**:
+- 現在の環境の絶対パスを自動検出（uv --directory要件）
+- プロジェクト構造の自動検出
+- 安全なバックアップ・移行機能
+- .gitignoreに追加済み（環境固有のため）
+
+### 手動設定（上級者向け）
+
+`.claude/settings.json`を手動作成する場合：
 ```json
 {
   "hooks": {
-    "PostToolUse": {
-      "Write,Edit,MultiEdit": {
-        "command": "uv run pyqc check ${file} --output github",
-        "onFailure": "warn",
-        "timeout": 10000
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv --directory /full/path/to/pyqc run scripts/git_hooks_detector.py",
+            "onFailure": "block",
+            "timeout": 60000
+          }
+        ]
       }
-    }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv --directory /full/path/to/pyqc run scripts/claude_hooks.py",
+            "onFailure": "warn",
+            "timeout": 15000
+          }
+        ]
+      }
+    ]
   }
 }
 ```
 
-**重要**: `${file}`変数により、編集されたファイルのパスが自動的に渡されます。
+**重要**: 
+- `uv --directory`は絶対パスが必要（例：`/full/path/to/pyqc`）
+- ワーキングディレクトリを変更せず、他のコマンドに影響しない
+- 環境固有のため各ユーザーが`pyqc hooks setup`で設定生成
+- Git commit検出時の事前品質チェック（PreToolUse）
+- ファイル編集時のリアルタイム品質チェック（PostToolUse）
+
+**チーム開発での推奨手順**:
+1. 各開発者が`uv run pyqc hooks setup`実行
+2. `.claude/settings.json`は自動的に.gitignoreされる
+3. `.claude/settings.json.template`がリポジトリで管理される
 
 ### pre-commit設定
 ```yaml
@@ -345,6 +416,7 @@ stapy116/
 - ✅ CLI インターフェース
 - ✅ 並列実行
 - ✅ Claude Code hooks統合
+- ✅ 環境非依存hooks設定管理
 - ✅ pre-commit hooks統合
 
 **計画中の機能**:
