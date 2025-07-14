@@ -135,23 +135,98 @@ pyqc fix pyqc/sample_project/
 pyqc config show
 ```
 
+## PyQC機能のデモンストレーション
+
+PyQCの各種機能を体験するためのサンプルプロジェクトが用意されています。
+
+### 品質チェック機能の体験
+
+`sample_project/example.py`には**意図的に品質問題**が含まれており、PyQCの様々な検出機能を体験できます：
+
+#### 1. 品質問題の確認
+
+**stapy116リポジトリ内で開発している場合**は、まず除外設定をコメントアウト：
+
+```bash
+# pyqc/pyproject.tomlを編集
+[tool.pyqc]
+line-length = 88
+type-checker = "mypy"
+# exclude = ["sample_project"]  # この行をコメントアウト
+```
+
+**品質問題を検出**：
+```bash
+# パターン1（PyQC単体インストール済み）
+pyqc check pyqc/sample_project/
+
+# パターン2（stapy116リポジトリ内）
+uv --directory pyqc run pyqc check sample_project/
+```
+
+**期待される出力例**:
+```
+🔍 Checking 1 Python file(s)...
+PyQC Report
+==================================================
+Files checked: 1
+Total issues: 20
+
+Issues found:
+- Import block is un-sorted or un-formatted
+- `os` imported but unused
+- Function name should be lowercase  
+- Local variable assigned but never used
+- Function missing type annotation
+- Line too long (exceeds 88 characters)
+```
+
+#### 2. 自動修正の体験
+
+```bash
+# 修正内容のプレビュー
+pyqc fix pyqc/sample_project/ --dry-run
+
+# 実際に修正実行
+pyqc fix pyqc/sample_project/
+```
+
+#### 3. 除外機能の体験
+
+**開発時は除外設定を有効化**：
+```bash
+# pyqc/pyproject.tomlを編集
+exclude = ["sample_project"]  # コメントを外して除外
+```
+
+**除外効果の確認**：
+```bash
+uv --directory pyqc run pyqc check .
+# → sample_projectが除外され、クリーンな結果
+```
+
 ### 学習目的での活用
 
 `sample_project/example.py` は以下の学習に活用できます：
 
 1. **品質チェックの理解**
-   - どのような問題が検出されるか
-   - エラーメッセージの読み方
+   - リント問題（未使用インポート、命名規則違反）
+   - 型チェック問題（型アノテーション不備）
+   - フォーマット問題（長すぎる行、インデント）
 
 2. **自動修正の体験**
    - どの問題が自動修正されるか
    - 修正前後のコード比較
 
-3. **出力形式の確認**
+3. **除外機能の理解**
+   - 開発時の生産性向上
+   - デモ・テスト用ファイルの管理
+
+4. **出力形式の確認**
    - テキスト、JSON、GitHub Actions形式の違い
    - CI/CDでの活用方法の理解
 
-4. **設定のカスタマイズ**
+5. **設定のカスタマイズ**
    - pyproject.tomlでの設定変更
    - 独自ルールの追加方法
 
@@ -235,6 +310,7 @@ uv run pyqc hooks migrate
 line_length = 88
 type_checker = "mypy"  # または "ty"
 parallel = true
+exclude = ["sample_project", "test_data"]  # 除外するパターン
 
 [tool.pyqc.ruff]
 extend_select = ["I", "N", "UP"]
@@ -250,6 +326,7 @@ ignore_missing_imports = true
 pyqc:
   line_length: 88
   type_checker: "mypy"
+  exclude: ["sample_project", "test_data"]  # 除外するパターン
   ruff:
     extend_select: ["I", "N", "UP"]
     ignore: ["E501"]

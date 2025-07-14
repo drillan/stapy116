@@ -63,6 +63,39 @@ class TestFindPythonFiles:
         result = find_python_files(nonexistent)
         assert result == []
 
+    def test_find_with_exclude_patterns(self, tmp_path: Path) -> None:
+        """Test finding Python files with exclude patterns."""
+        (tmp_path / "keep.py").write_text("print('keep')")
+        (tmp_path / "sample_project").mkdir()
+        (tmp_path / "sample_project" / "exclude_me.py").write_text("print('exclude')")
+        (tmp_path / "test_data").mkdir()
+        (tmp_path / "test_data" / "also_exclude.py").write_text("print('also exclude')")
+
+        # Test without exclude patterns
+        result = find_python_files(tmp_path)
+        assert len(result) == 3
+
+        # Test with exclude patterns
+        result = find_python_files(tmp_path, ["sample_project", "test_data"])
+        assert len(result) == 1
+        assert result[0].name == "keep.py"
+
+    def test_find_with_empty_exclude_patterns(self, tmp_path: Path) -> None:
+        """Test finding Python files with empty exclude patterns."""
+        (tmp_path / "file1.py").write_text("print('file1')")
+        (tmp_path / "file2.py").write_text("print('file2')")
+
+        result = find_python_files(tmp_path, [])
+        assert len(result) == 2
+
+    def test_find_with_none_exclude_patterns(self, tmp_path: Path) -> None:
+        """Test finding Python files with None exclude patterns."""
+        (tmp_path / "file1.py").write_text("print('file1')")
+        (tmp_path / "file2.py").write_text("print('file2')")
+
+        result = find_python_files(tmp_path, None)
+        assert len(result) == 2
+
 
 class TestLoadConfig:
     """Test configuration loading."""

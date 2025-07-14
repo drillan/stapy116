@@ -24,13 +24,15 @@ app = typer.Typer(
 console = Console()
 
 
-def find_python_files(path: Path) -> list[Path]:
+def find_python_files(
+    path: Path, exclude_patterns: list[str] | None = None
+) -> list[Path]:
     """Find Python files in the given path."""
     if path.is_file() and path.suffix == ".py":
         return [path]
     elif path.is_dir():
-        # Find all .py files, excluding common directories
-        exclude_patterns = {
+        # Find all .py files, excluding common directories and user-specified patterns
+        default_exclude_patterns = {
             ".git",
             "__pycache__",
             ".pytest_cache",
@@ -38,9 +40,15 @@ def find_python_files(path: Path) -> list[Path]:
             "venv",
             "node_modules",
         }
+
+        # Add user-specified exclude patterns
+        all_exclude_patterns = default_exclude_patterns.copy()
+        if exclude_patterns:
+            all_exclude_patterns.update(exclude_patterns)
+
         python_files = []
         for py_file in path.rglob("*.py"):
-            if not any(exclude in str(py_file) for exclude in exclude_patterns):
+            if not any(exclude in str(py_file) for exclude in all_exclude_patterns):
                 python_files.append(py_file)
         return sorted(python_files)
     else:
@@ -78,14 +86,14 @@ def check(
         console.print(f"❌ Error: Path '{path}' does not exist", style="red")
         raise typer.Exit(1)
 
+    # Load configuration first to get exclude patterns
+    config = load_config(target_path)
+
     # Find Python files to check
-    python_files = find_python_files(target_path)
+    python_files = find_python_files(target_path, config.exclude)
     if not python_files:
         console.print(f"⚠️ No Python files found in '{path}'", style="yellow")
         raise typer.Exit(0)
-
-    # Load configuration
-    config = load_config(target_path)
 
     # Show progress
     if output == "text":
@@ -160,14 +168,14 @@ def fix(
         console.print(f"❌ Error: Path '{path}' does not exist", style="red")
         raise typer.Exit(1)
 
+    # Load configuration first to get exclude patterns
+    config = load_config(target_path)
+
     # Find Python files to fix
-    python_files = find_python_files(target_path)
+    python_files = find_python_files(target_path, config.exclude)
     if not python_files:
         console.print(f"⚠️ No Python files found in '{path}'", style="yellow")
         raise typer.Exit(0)
-
-    # Load configuration
-    config = load_config(target_path)
 
     # Show what we're going to do
     action = "would fix" if dry_run else "fixing"

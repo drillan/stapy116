@@ -35,6 +35,7 @@ class PyQCConfig(BaseModel):
     line_length: int = Field(default=88, ge=1, le=300, alias="line-length")
     type_checker: str = Field(default="mypy", alias="type-checker")
     parallel: bool = Field(default=True)
+    exclude: list[str] = Field(default_factory=list)
     ruff: RuffConfig = Field(default_factory=RuffConfig)
     mypy: TypeCheckerConfig = Field(default_factory=TypeCheckerConfig)
 

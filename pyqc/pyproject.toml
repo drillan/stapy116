@@ -55,6 +55,7 @@ packages = ["src/pyqc"]
 [tool.pyqc]
 line-length = 88
 type-checker = "mypy"
+exclude = ["sample_project"]
 
 [tool.pyqc.ruff]
 extend-select = ["I", "N", "UP"]
