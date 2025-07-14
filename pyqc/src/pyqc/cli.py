@@ -710,8 +710,12 @@ def _setup_hooks_config() -> None:
         console.print("\n📋 Configuration details:")
         console.print(f"   Project root: {project_root}")
         console.print(f"   PyQC directory: {pyqc_dir}")
-        console.print(f"   Commands use 'uv --directory {pyqc_dir}' (absolute path required)")
-        console.print("\n⚠️ Note: This configuration contains environment-specific absolute paths")
+        console.print(
+            f"   Commands use 'uv --directory {pyqc_dir}' (absolute path required)"
+        )
+        console.print(
+            "\n⚠️ Note: This configuration contains environment-specific absolute paths"
+        )
         console.print("   Add .claude/settings.json to .gitignore for team development")
 
         console.print(
@@ -775,7 +779,10 @@ def _validate_hooks_config() -> None:
                     path_part = parts[1].strip().split()[0].strip('"')
                     # Check if path is relative (doesn't start with / or contain :)
                     if not (path_part.startswith("/") or ":" in path_part):
-                        console.print("❌ Found relative path in uv --directory command", style="red")
+                        console.print(
+                            "❌ Found relative path in uv --directory command",
+                            style="red",
+                        )
                         console.print(f"   Problem line: {line.strip()}")
                         console.print(f"   Relative path: {path_part}")
                         console.print("   uv --directory requires absolute paths")
@@ -783,7 +790,9 @@ def _validate_hooks_config() -> None:
                         all_valid = False
 
         if has_invalid_paths:
-            console.print("💡 Run 'uv run pyqc hooks migrate' to fix relative path issues")
+            console.print(
+                "💡 Run 'uv run pyqc hooks migrate' to fix relative path issues"
+            )
         else:
             # Check if we have proper absolute paths in --directory commands
             has_directory_commands = "--directory" in config_str
@@ -830,12 +839,12 @@ def _migrate_hooks_config() -> None:
         # Check if migration is needed (look for old cd format or relative --directory paths)
         config_str = json.dumps(config, indent=2)
         needs_migration = False
-        
+
         # Check for old cd format
         if "cd " in config_str:
             console.print("🔍 Found old 'cd' format commands")
             needs_migration = True
-        
+
         # Check for relative paths in --directory (which don't work)
         for line in config_str.split("\n"):
             if "--directory" in line:
@@ -845,13 +854,16 @@ def _migrate_hooks_config() -> None:
                     path_part = parts[1].strip().split()[0].strip('"')
                     # Check if path is relative (doesn't start with / or contain :)
                     if not (path_part.startswith("/") or ":" in path_part):
-                        console.print(f"🔍 Found relative path in uv --directory: {path_part}")
+                        console.print(
+                            f"🔍 Found relative path in uv --directory: {path_part}"
+                        )
                         needs_migration = True
                         break
-        
+
         if not needs_migration:
             console.print(
-                "✅ Configuration is already using correct absolute paths!", style="green"
+                "✅ Configuration is already using correct absolute paths!",
+                style="green",
             )
             return
 
@@ -904,9 +916,11 @@ def _migrate_hooks_config() -> None:
         console.print("\n📋 Migration summary:")
         console.print(f"   Backup: {backup_file}")
         console.print(f"   New config: {settings_file}")
-        console.print(f"   Updated to use absolute paths (required by uv --directory)")
+        console.print("   Updated to use absolute paths (required by uv --directory)")
         console.print(f"   Commands use 'uv --directory {pyqc_dir}'")
-        console.print("\n⚠️ Note: Configuration now contains environment-specific absolute paths")
+        console.print(
+            "\n⚠️ Note: Configuration now contains environment-specific absolute paths"
+        )
         console.print("   Recommend adding .claude/settings.json to .gitignore")
 
         console.print(
