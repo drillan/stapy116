@@ -12,6 +12,32 @@ driller[@patrqushe](https://x.com/patraqushe) 2025-07-17
 - 発表者個人の経験による主観や感想が含まれています
 - 各プロジェクトの特性に合わせて調整してください
 
+### AIエディタの開発アプローチの変遷
+
+シンプルなプロンプトから体系的なアプローチへ移行
+
+### Vibe Codingの特徴
+
+優秀な料理の助手として
+
+- 直感的な対話型開発
+- 自然言語での即座生成
+- プロトタイプ向け
+- 品質管理に限界
+
+「さっぱりした和食のイメージで」といった抽象的指示
+
+### Agentic Codingの特徴
+
+ベテランシェフとして
+
+- 自律的な目標達成
+- 計画から実行まで自動化
+- 企業レベル対応
+- 監督者への役割変化
+
+「顧客満足度を上げる新作メニュー開発」といった高レベル目標
+
 ## [Claude Code](https://docs.anthropic.com/en/docs/claude-code)とは
 
 AnthropicのClaude AIを活用したCLIツール
@@ -61,47 +87,11 @@ AnthropicのClaude AIを活用したCLIツール
 
 複雑なタスクには体系的な手法が必要
 
-- 計画・設計の立案
-- 知識の記録と蓄積
-- 高品質なコード実装
+### 3つのポイント
 
-### 開発アプローチの変遷
-
-シンプルなプロンプトから体系的なアプローチへ移行
-
-### Vibe Codingの特徴
-
-優秀な料理の助手として
-
-- 直感的な対話型開発
-- 自然言語での即座生成
-- プロトタイプ向け
-- 品質管理に限界
-
-「さっぱりした和食のイメージで」といった抽象的指示
-
-### Agentic Codingの特徴
-
-ベテランシェフとして
-
-- 自律的な目標達成
-- 計画から実行まで自動化
-- 企業レベル対応
-- 監督者への役割変化
-
-「顧客満足度を上げる新作メニュー開発」といった高レベル目標
-
-### AIエディタの課題
-
-- 複雑な要求に対応困難
-- 品質担保が困難
-- 管理性の欠如
-
-## 3つのポイント
-
-- 計画・設計を立てる
-- 記録を残す
-- 高品質なコードを書く
+1. 計画・設計を立てる
+2. 記録を残す
+3. 高品質なコードを書く
 
 ## 計画・設計を立てる
 
@@ -150,6 +140,12 @@ Shift + Tabで計画モードに切り替え
 
 [「think」「think more」「think harder」「ultrathink」](https://www.anthropic.com/engineering/claude-code-best-practices)で深い思考を促進
 
+### [メモリ](https://docs.anthropic.com/en/docs/claude-code/memory)とは
+
+- モデルの応答を「記憶」しておくためのスペース
+- このスペースを「コンテキストウィンドウ」と呼ぶ
+- メモリはMarkdown形式のファイルで管理する
+
 ### [CLAUDE.md](https://docs.anthropic.com/en/docs/claude-code/memory)による設計の一貫性確保
 
 プロジェクトメモリで設計方針を永続化
@@ -157,12 +153,6 @@ Shift + Tabで計画モードに切り替え
 - アーキテクチャパターンの文書化
 - コーディング規約の統一
 - チームワークフローの標準化
-
-### [メモリ](https://docs.anthropic.com/en/docs/claude-code/memory)とは
-
-- モデルの応答を「記憶」しておくためのスペース
-- このスペースを「コンテキストウィンドウ」と呼ぶ
-- メモリはMarkdown形式のファイルで管理する
 
 ### メモリタイプ
 
@@ -224,25 +214,10 @@ Shift + Tabで計画モードに切り替え
 ```{literalinclude} ./sample/pyqc-check.md
 ```
 ````
-
-### 実装計画管理の例
-
-````{container} custom
-```{literalinclude} ../plans/index.md
-```
-````
-
 ### 実装計画の例
 
 ````{container} custom
 ```{literalinclude} ../.claude/project-plan.md
-```
-````
-
-### 実装カスタムコマンド例
-
-````{container} custom
-```{literalinclude} ../.claude/commands/r.md
 ```
 ````
 
@@ -255,7 +230,7 @@ Shift + Tabで計画モードに切り替え
 
 ### まとめ: 計画・設計への投資
 
-- 後の開発フェーズでの生産性向上と品質保証に直結する
+- プロジェクトが目指すゴールへ向かって、開発を正しい方向に導く
 - Claude Codeの自律的な能力を最大限に活用するための基盤となる
 
 ## 記録を残す
@@ -286,14 +261,6 @@ Shift + Tabで計画モードに切り替え
 - 技術的負債の削減
 
 ### Claude Codeでの記録管理
-
-### CLAUDE.mdファイルの活用
-
-プロジェクトの核となる記録
-
-- プロジェクト概要とアーキテクチャ
-- 開発コマンドと設定の文書化
-- コーディング規約とスタイルガイド
 
 ### .claudeディレクトリによる体系的管理
 
@@ -377,18 +344,13 @@ common-patterns.md
 
 Claude Codeが実行できる頻繁に使用されるプロンプトをMarkdownファイルとして定義
 
+`.claude/commands/learnings.md` というファイルを事前に用意すると、
+`/learnings` と入力するだけでその内容が実行される
+
 ```````{container} custom
 ```{literalinclude} ../.claude/commands/learnings.md
 ```
 ```````
-
-### 定期的な整理と更新
-
-記録の鮮度を保つ
-
-- 適切な頻度の情報整理
-- 古い情報の精査と更新
-- カスタムコマンドによるコンテキスト更新
 
 ### 記録がもたらす効果
 
