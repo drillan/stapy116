@@ -20,7 +20,7 @@
 - **仮想環境**: uvによる自動管理
 
 ### 依存関係制約
-- **外部ツール**: ruff, mypy/ty
+- **外部ツール**: ruff, mypy
 - **CLI**: typer（Rich統合）
 - **設定**: Pydantic v2（エイリアス対応）
 - **テスト**: pytest + pytest-cov
